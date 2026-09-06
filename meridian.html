@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meridian — Departure · Arrival · IDL Console</title>
+<style>
+  :root{
+    --bg: #0A0F14;
+    --bg-raised: #0E141A;
+    --panel: #10171E;
+    --panel-border: #1E2A33;
+    --text: #E7EEF2;
+    --text-dim: #7E8B93;
+    --text-faint: #4E5A63;
+    --cyan: #4FD8C4;
+    --cyan-dim: #2A5A52;
+    --amber: #E8A33D;
+    --amber-dim: #5E4620;
+    --danger: #E2574C;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --radius: 6px;
+  }
+  *{ box-sizing: border-box; }
+  html, body{ margin:0; padding:0; background: var(--bg); color: var(--text); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+  body{ min-height:100vh; padding-bottom: 3rem; }
+  ::selection{ background: var(--cyan-dim); color: var(--text); }
+  :focus-visible{ outline: 2px solid var(--cyan); outline-offset: 2px; }
+  input, select, button{ font-family: inherit; }
+  .wrap{ max-width: 980px; margin: 0 auto; padding: 1.5rem 1.25rem 0; }
+
+  header.top{ display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; flex-wrap: wrap; padding-bottom: 1.25rem; border-bottom: 1px solid var(--panel-border); }
+  .wordmark{ font-size: 1.7rem; font-weight: 650; letter-spacing: 0.01em; margin:0; }
+  .wordmark span{ color: var(--cyan); }
+  .tagline{ margin: 0.3rem 0 0; color: var(--text-dim); font-size: 0.92rem; max-width: 40ch; }
+
+  button.now-btn{ background: var(--cyan); color: #06211D; border: none; font-weight: 600; font-size: 0.88rem; padding: 0.65rem 1.1rem; border-radius: var(--radius); cursor: pointer; transition: box-shadow 120ms ease, transform 120ms ease; white-space: nowrap; }
+  button.now-btn:hover{ box-shadow: 0 0 0 3px var(--cyan-dim); }
+  button.now-btn:active{ transform: translateY(1px); }
+
+  .hero{ margin-top: 1.5rem; padding: 1.1rem 1.6rem; background: linear-gradient(180deg, var(--bg-raised), var(--bg)); border: 1px solid var(--panel-border); border-radius: 10px; display:flex; align-items:baseline; gap: 0.9rem; }
+  .hero .hero__label{ font-size: 0.68rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); }
+  .hero .hero__value{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: clamp(1.2rem, 4vw, 1.6rem); color: var(--cyan); letter-spacing: 0.01em; }
+
+  h2.section-title{ font-size: 0.95rem; font-weight: 650; margin: 2.2rem 0 0.9rem; color: var(--text); display:flex; align-items:center; justify-content:space-between; gap:0.6rem; }
+  h2.section-title .section-title__left{ display:flex; align-items:center; gap:0.6rem; }
+  h2.section-title .dot{ width:7px; height:7px; border-radius:50%; background: var(--cyan); flex:none; }
+  h2.section-title.amber .dot{ background: var(--amber); }
+
+  .toggle-group{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .toggle-wrap-outer{ display:flex; align-items:center; gap:0.35rem; }
+  .toggle-wrap{ display:flex; align-items:center; gap:0.55rem; font-size: 0.78rem; font-weight: 500; color: var(--text-dim); letter-spacing: 0; text-transform: none; cursor: pointer; }
+  .switch{ position:relative; display:inline-block; width:36px; height:20px; flex:none; }
+  .switch input{ position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+  .switch .slider{ position:absolute; inset:0; background: var(--panel-border); border-radius:999px; transition: background-color 150ms ease; }
+  .switch .slider::before{ content:""; position:absolute; height:14px; width:14px; left:3px; top:3px; background: var(--text-dim); border-radius:50%; transition: transform 150ms ease, background-color 150ms ease; }
+  .switch input:checked + .slider{ background: var(--cyan-dim); }
+  .switch input:checked + .slider::before{ transform: translateX(16px); background: var(--cyan); }
+  .switch input:focus-visible + .slider{ outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  .info-icon{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; border:1px solid var(--text-faint); color:var(--text-faint); font-size:0.65rem; font-family:var(--font-mono); font-style:italic; cursor:help; flex:none; user-select:none; }
+  .info-icon:hover, .info-icon:focus-visible, .info-icon.active{ border-color: var(--cyan); color: var(--cyan); outline:none; }
+  .info-tooltip{ position:absolute; bottom:135%; right:0; width:200px; background: var(--panel); border:1px solid var(--panel-border); color: var(--text); font-size:0.72rem; font-weight:400; font-style:normal; font-family: var(--font-sans); line-height:1.45; padding:0.6rem 0.75rem; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.4); opacity:0; pointer-events:none; transition:opacity 120ms ease; z-index:20; text-align:left; }
+  .info-icon:hover .info-tooltip, .info-icon:focus-visible .info-tooltip, .info-icon.active .info-tooltip{ opacity:1; }
+
+  .converter-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 680px){ .converter-grid{ grid-template-columns: 1fr; } }
+
+  .panel{ position:relative; background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 1.1rem 1.25rem 1.3rem; overflow: hidden; }
+  .panel::before{ content:""; position:absolute; top:0; left:0; right:0; height:2px; background: var(--cyan); }
+  .panel.arrival::before{ background: var(--amber); }
+  .panel.summary::before{ background: var(--amber); }
+
+  .panel__head{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.85rem; gap: 0.5rem; }
+  .panel__title{ font-size: 0.7rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-dim); }
+  .panel__weekday{ font-size: 0.72rem; color: var(--text-faint); font-family: var(--font-mono); }
+
+  .field{ margin-bottom: 0.7rem; }
+  .field:last-child{ margin-bottom: 0; }
+  .field label{ display:block; font-size: 0.72rem; color: var(--text-faint); margin-bottom: 0.3rem; }
+
+  .field-note{ font-size: 0.72rem; color: var(--text-faint); margin: -0.35rem 0 0.7rem; line-height: 1.4; font-family: var(--font-mono); }
+  .field-note.error{ color: var(--danger); font-family: var(--font-sans); }
+
+  select, input[type="date"], input[type="time"], input[type="text"]{
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px;
+    padding: 0.55rem 0.65rem; font-size: 0.95rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  }
+  select:focus, input:focus{ border-color: var(--cyan); }
+
+  .value-row{ display:flex; align-items:center; gap: 0.5rem; }
+  .value-row input{ flex:1; }
+
+  .copy-btn{ flex: none; background: transparent; border: 1px solid var(--panel-border); color: var(--text-dim); border-radius: 4px; padding: 0.5rem 0.6rem; font-size: 0.72rem; cursor:pointer; transition: color 120ms ease, border-color 120ms ease; }
+  .copy-btn:hover{ color: var(--cyan); border-color: var(--cyan); }
+  .copy-btn.copied{ color: var(--cyan); border-color: var(--cyan); }
+
+  .panel__caption{ margin: 0.5rem 0 0; font-size: 0.72rem; color: var(--text-faint); line-height: 1.4; }
+
+  .presets{ display:flex; gap:0.5rem; flex-wrap:wrap; margin-top: 0.9rem; }
+  .pill{ background: var(--bg); border: 1px solid var(--panel-border); color: var(--text-dim); font-size: 0.78rem; padding: 0.45rem 0.85rem; border-radius: 999px; cursor: pointer; transition: border-color 120ms ease, color 120ms ease; }
+  .pill:hover{ border-color: var(--cyan); color: var(--cyan); }
+
+  .divider{ border: none; border-top: 1px solid var(--panel-border); margin: 1rem 0; }
+
+  .result-label{ font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 0.4rem; }
+  .result-main{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+  .result-sub{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.7rem; color: var(--cyan); margin-top: 0.15rem; }
+  .panel.arrival .result-sub{ color: var(--amber); }
+
+  .summary-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1rem; }
+  @media (max-width: 560px){ .summary-grid{ grid-template-columns: 1fr; } }
+  .summary-item .result-label{ margin-bottom: 0.3rem; }
+  .summary-item .result-main{ font-size: 1.25rem; color: var(--amber); }
+
+  .banner{ border-radius: var(--radius); padding: 0.9rem 1.05rem; font-size: 0.88rem; line-height: 1.5; border: 1px solid var(--panel-border); background: var(--bg); color: var(--text-dim); }
+  .banner.crossing{ border-color: var(--amber-dim); background: #1C160A; color: #F0C98C; }
+  .banner strong{ color: var(--amber); font-weight: 650; }
+  .banner .glyph{ margin-right: 0.4rem; }
+
+  footer.foot{ max-width: 980px; margin: 2.4rem auto 0; padding: 1.1rem 1.25rem 0; border-top: 1px solid var(--panel-border); color: var(--text-faint); font-size: 0.78rem; text-align: center; }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="wordmark">MERIDIAN<span>.</span></p>
+      <p class="tagline">Enter your departure and arrival Julian day and Zulu time — Meridian works out local dates and times on both ends, and flags any International Date Line crossing.</p>
+    </div>
+    <button class="now-btn" id="useNowBtn" type="button">Set departure to now</button>
+  </header>
+
+  <div class="hero">
+    <span class="hero__label">Live UTC (Zulu)</span>
+    <span class="hero__value" id="liveUtc">—</span>
+  </div>
+
+  <h2 class="section-title">
+    <span class="section-title__left"><span class="dot"></span>Flight</span>
+    <div class="toggle-group">
+      <span class="toggle-wrap-outer" id="yearToggleWrap">
+        <label class="toggle-wrap">
+          <span class="switch"><input type="checkbox" id="yearToggle"><span class="slider"></span></span>
+          Year (YYDDD)
+        </label>
+        <span class="info-icon" tabindex="0" role="button" aria-label="When to use Year (YYDDD)">i
+          <span class="info-tooltip">Turn this on if your trip crosses a year boundary — for example, departing in late December and arriving in January. Otherwise the day-of-year number alone is all you need.</span>
+        </span>
+      </span>
+      <label class="toggle-wrap">
+        <span class="switch"><input type="checkbox" id="julianToggle" checked><span class="slider"></span></span>
+        Julian Date
+      </label>
+      <span class="info-icon" tabindex="0" role="button" aria-label="What Julian Date mode does">i
+        <span class="info-tooltip">On: enter departure and arrival as Julian Day + Zulu time, the format dispatch releases use. Off: use a plain calendar date instead — handy for everyday flights that don't come with a Julian day.</span>
+      </span>
+    </div>
+  </h2>
+  <div class="converter-grid">
+
+    <!-- DEPARTURE -->
+    <div class="panel">
+      <div class="panel__head">
+        <span class="panel__title">Departure</span>
+        <span class="panel__weekday" id="originWeekday">—</span>
+      </div>
+      <div class="field">
+        <label for="originLocation">Origin — city or airport code</label>
+        <input type="text" id="originLocation" list="locationList" placeholder="e.g. HNL, Honolulu" autocomplete="off">
+      </div>
+      <div class="field-note" id="originNote">—</div>
+
+      <div id="depJulianGroup">
+        <div class="field">
+          <label for="depSjd">Departure Julian Day (DDD)</label>
+          <div class="value-row">
+            <input type="text" id="depSjd" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="249">
+            <button class="copy-btn" data-copy-target="depSjd" type="button">Copy</button>
+          </div>
+        </div>
+        <div id="depLjdGroup" style="display:none">
+          <div class="field">
+            <label for="depLjd">Long Julian Date (YYDDD) — optional, for year clarity</label>
+            <div class="value-row">
+              <input type="text" id="depLjd" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="26249">
+              <button class="copy-btn" data-copy-target="depLjd" type="button">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="depCalendarGroup" style="display:none">
+        <div class="field">
+          <label for="depDate">Departure Date (Zulu)</label>
+          <input type="date" id="depDate">
+        </div>
+      </div>
+      <div class="field">
+        <label for="depZuluTime">Departure Zulu Time (24-hr)</label>
+        <input type="text" id="depZuluTime" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="14:00">
+      </div>
+
+      <hr class="divider">
+      <div class="result-label">Local at Origin</div>
+      <div class="result-main" id="originLocalDate">—</div>
+      <div class="result-sub" id="originLocalTime">—</div>
+
+      <div class="presets">
+        <button class="pill" id="presetZuluOrigin" type="button">Jump to Zulu / UTC</button>
+      </div>
+    </div>
+
+    <!-- ARRIVAL -->
+    <div class="panel arrival">
+      <div class="panel__head">
+        <span class="panel__title">Arrival</span>
+        <span class="panel__weekday" id="destWeekday">—</span>
+      </div>
+      <div class="field">
+        <label for="destLocation">Destination — city or airport code</label>
+        <input type="text" id="destLocation" list="locationList" placeholder="e.g. GUM, Guam" autocomplete="off">
+      </div>
+      <div class="field-note" id="destNote">—</div>
+
+      <div id="arrJulianGroup">
+        <div class="field">
+          <label for="arrSjd">Arrival Julian Day (DDD)</label>
+          <div class="value-row">
+            <input type="text" id="arrSjd" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="250">
+            <button class="copy-btn" data-copy-target="arrSjd" type="button">Copy</button>
+          </div>
+        </div>
+        <div id="arrLjdGroup" style="display:none">
+          <div class="field">
+            <label for="arrLjd">Long Julian Date (YYDDD) — optional, for year clarity</label>
+            <div class="value-row">
+              <input type="text" id="arrLjd" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="26250">
+              <button class="copy-btn" data-copy-target="arrLjd" type="button">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="arrCalendarGroup" style="display:none">
+        <div class="field">
+          <label for="arrDate">Arrival Date (Zulu)</label>
+          <input type="date" id="arrDate">
+        </div>
+      </div>
+      <div class="field">
+        <label for="arrZuluTime">Arrival Zulu Time (24-hr)</label>
+        <input type="text" id="arrZuluTime" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="14:00">
+      </div>
+
+      <hr class="divider">
+      <div class="result-label">Local at Destination</div>
+      <div class="result-main" id="destLocalDate">—</div>
+      <div class="result-sub" id="destLocalTime">—</div>
+
+      <div class="presets">
+        <button class="pill" id="presetZuluDest" type="button">Jump to Zulu / UTC</button>
+        <button class="pill" id="swapBtn" type="button">⇄ Swap departure / arrival</button>
+      </div>
+    </div>
+
+  </div>
+
+  <datalist id="locationList"></datalist>
+
+  <h2 class="section-title amber"><span class="dot"></span>Trip summary</h2>
+  <div class="panel summary">
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="result-label">Flight duration</div>
+        <div class="result-main" id="durationText">—</div>
+      </div>
+      <div class="summary-item">
+        <div class="result-label">Arriving locally</div>
+        <div class="result-main" id="arrivalHeadline">—</div>
+      </div>
+    </div>
+    <div class="banner" id="idlBanner" aria-live="polite">Enter departure and arrival details to see local times and any date-line crossing.</div>
+  </div>
+
+  <footer class="foot">
+    Runs entirely on your device. No accounts, no tracking, no network requests — works offline once loaded. City and airport lookups use your browser's built-in time zone data.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- embedded airport database (IATA code -> city, country, IANA tz) ---------------- */
+  var AIRPORTS = {"ATL":{"c":"Atlanta","n":"US","z":"America/New_York","s":"Georgia"},"LAX":{"c":"Los Angeles","n":"US","z":"America/Los_Angeles","s":"California"},"ORD":{"c":"Chicago","n":"US","z":"America/Chicago","s":"Illinois"},"DFW":{"c":"Dallas-Fort Worth","n":"US","z":"America/Chicago","s":"Texas"},"DEN":{"c":"Denver","n":"US","z":"America/Denver","s":"Colorado"},"JFK":{"c":"New York","n":"US","z":"America/New_York","s":"New York"},"SFO":{"c":"San Francisco","n":"US","z":"America/Los_Angeles","s":"California"},"SEA":{"c":"Seattle","n":"US","z":"America/Los_Angeles","s":"Washington"},"LAS":{"c":"Las Vegas","n":"US","z":"America/Los_Angeles","s":"Nevada"},"MCO":{"c":"Orlando","n":"US","z":"America/New_York","s":"Florida"},"CLT":{"c":"Charlotte","n":"US","z":"America/New_York","s":"North Carolina"},"MIA":{"c":"Miami","n":"US","z":"America/New_York","s":"Florida"},"PHX":{"c":"Phoenix","n":"US","z":"America/Phoenix","s":"Arizona"},"IAH":{"c":"Houston","n":"US","z":"America/Chicago","s":"Texas"},"EWR":{"c":"Newark","n":"US","z":"America/New_York","s":"New Jersey"},"MSP":{"c":"Minneapolis","n":"US","z":"America/Chicago","s":"Minnesota"},"DTW":{"c":"Detroit","n":"US","z":"America/New_York","s":"Michigan"},"BOS":{"c":"Boston","n":"US","z":"America/New_York","s":"Massachusetts"},"PHL":{"c":"Philadelphia","n":"US","z":"America/New_York","s":"Pennsylvania"},"LGA":{"c":"New York","n":"US","z":"America/New_York","s":"New York"},"FLL":{"c":"Fort Lauderdale","n":"US","z":"America/New_York","s":"Florida"},"BWI":{"c":"Baltimore","n":"US","z":"America/New_York","s":"Maryland"},"SLC":{"c":"Salt Lake City","n":"US","z":"America/Denver","s":"Utah"},"SAN":{"c":"San Diego","n":"US","z":"America/Los_Angeles","s":"California"},"IAD":{"c":"Washington","n":"US","z":"America/New_York","s":"District of Columbia"},"DCA":{"c":"Washington","n":"US","z":"America/New_York","s":"District of Columbia"},"MDW":{"c":"Chicago","n":"US","z":"America/Chicago","s":"Illinois"},"TPA":{"c":"Tampa","n":"US","z":"America/New_York","s":"Florida"},"PDX":{"c":"Portland","n":"US","z":"America/Los_Angeles","s":"Oregon"},"HNL":{"c":"Honolulu","n":"US","z":"Pacific/Honolulu","s":"Hawaii"},"ANC":{"c":"Anchorage","n":"US","z":"America/Anchorage","s":"Alaska"},"OGG":{"c":"Kahului","n":"US","z":"Pacific/Honolulu","s":"Hawaii"},"KOA":{"c":"Kailua-Kona","n":"US","z":"Pacific/Honolulu","s":"Hawaii"},"ITO":{"c":"Hilo","n":"US","z":"Pacific/Honolulu","s":"Hawaii"},"ADK":{"c":"Adak","n":"US","z":"America/Adak","s":"Alaska"},"DUT":{"c":"Unalaska","n":"US","z":"America/Anchorage","s":"Alaska"},"YYZ":{"c":"Toronto","n":"CA","z":"America/Toronto","s":"Ontario"},"YVR":{"c":"Vancouver","n":"CA","z":"America/Vancouver","s":"British Columbia"},"YUL":{"c":"Montreal","n":"CA","z":"America/Toronto","s":"Quebec"},"YYC":{"c":"Calgary","n":"CA","z":"America/Edmonton","s":"Alberta"},"YEG":{"c":"Edmonton","n":"CA","z":"America/Edmonton","s":"Alberta"},"YOW":{"c":"Ottawa","n":"CA","z":"America/Toronto","s":"Ontario"},"YWG":{"c":"Winnipeg","n":"CA","z":"America/Winnipeg","s":"Manitoba"},"YHZ":{"c":"Halifax","n":"CA","z":"America/Halifax","s":"Nova Scotia"},"MEX":{"c":"Mexico City","n":"MX","z":"America/Mexico_City","s":"Mexico City"},"CUN":{"c":"Cancun","n":"MX","z":"America/Cancun","s":"Quintana Roo"},"GDL":{"c":"Guadalajara","n":"MX","z":"America/Mexico_City","s":"Jalisco"},"MTY":{"c":"Monterrey","n":"MX","z":"America/Mexico_City","s":"Nuevo Leon"},"PTY":{"c":"Panama City","n":"PA","z":"America/Panama","s":"Panama"},"SJO":{"c":"San Jose","n":"CR","z":"America/Costa_Rica","s":"Alajuela"},"GUA":{"c":"Guatemala City","n":"GT","z":"America/Guatemala","s":"Guatemala"},"SAL":{"c":"San Salvador","n":"SV","z":"America/El_Salvador","s":"La Paz"},"TGU":{"c":"Tegucigalpa","n":"HN","z":"America/Tegucigalpa","s":"Francisco-Morazan"},"MGA":{"c":"Managua","n":"NI","z":"America/Managua","s":"Managua"},"HAV":{"c":"Havana","n":"CU","z":"America/Havana","s":"La Habana"},"SJU":{"c":"San Juan","n":"US","z":"America/Puerto_Rico","s":"Puerto Rico"},"NAS":{"c":"Nassau","n":"BS","z":"America/Nassau","s":"New-Providence"},"KIN":{"c":"Kingston","n":"JM","z":"America/Jamaica","s":"Kingston"},"POS":{"c":"Port of Spain","n":"TT","z":"America/Port_of_Spain","s":"Tunapuna/Piarco"},"GRU":{"c":"Sao Paulo","n":"BR","z":"America/Sao_Paulo","s":"S\u00e3o Paulo"},"GIG":{"c":"Rio De Janeiro","n":"BR","z":"America/Sao_Paulo","s":"Rio de Janeiro"},"BSB":{"c":"Brasilia","n":"BR","z":"America/Sao_Paulo","s":"Federal-District"},"CGH":{"c":"Sao Paulo","n":"BR","z":"America/Sao_Paulo","s":"S\u00e3o Paulo"},"EZE":{"c":"Ezeiza","n":"AR","z":"America/Argentina/Buenos_Aires","s":"Buenos-Aires"},"AEP":{"c":"Buenos Aires","n":"AR","z":"America/Argentina/Buenos_Aires","s":"Buenos-Aires-F-D-"},"SCL":{"c":"Santiago","n":"CL","z":"America/Santiago","s":"Santiago-Metropolitan"},"LIM":{"c":"Lima","n":"PE","z":"America/Lima","s":"Callao"},"BOG":{"c":"Bogota","n":"CO","z":"America/Bogota","s":"Bogota-D-C-"},"UIO":{"c":"Quito","n":"EC","z":"America/Guayaquil","s":"Pichincha"},"GYE":{"c":"Guayaquil","n":"EC","z":"America/Guayaquil","s":"Guayas"},"CCS":{"c":"Caracas","n":"VE","z":"America/Caracas","s":"Vargas"},"MVD":{"c":"Montevideo","n":"UY","z":"America/Montevideo","s":"Canelones"},"ASU":{"c":"Asuncion","n":"PY","z":"America/Asuncion","s":"Central"},"LPB":{"c":"La Paz / El Alto","n":"BO","z":"America/La_Paz","s":"La Paz"},"VVI":{"c":"Santa Cruz","n":"BO","z":"America/La_Paz","s":"Santa Cruz"},"LHR":{"c":"London","n":"GB","z":"Europe/London","s":"England"},"LGW":{"c":"London","n":"GB","z":"Europe/London","s":"England"},"STN":{"c":"London","n":"GB","z":"Europe/London","s":"England"},"LTN":{"c":"London","n":"GB","z":"Europe/London","s":"England"},"CDG":{"c":"Paris","n":"FR","z":"Europe/Paris","s":"Ile-de-France"},"ORY":{"c":"Paris","n":"FR","z":"Europe/Paris","s":"Ile-de-France"},"FRA":{"c":"Frankfurt am Main","n":"DE","z":"Europe/Berlin","s":"Hesse"},"MUC":{"c":"Munich","n":"DE","z":"Europe/Berlin","s":"Bayern"},"DUS":{"c":"Dusseldorf","n":"DE","z":"Europe/Berlin","s":"Nordrhein-Westfalen"},"AMS":{"c":"Amsterdam","n":"NL","z":"Europe/Amsterdam","s":"North Holland"},"MAD":{"c":"Madrid","n":"ES","z":"Europe/Madrid","s":"Comunidad de Madrid"},"BCN":{"c":"Barcelona","n":"ES","z":"Europe/Madrid","s":"Catalu\u00f1a"},"FCO":{"c":"Rome","n":"IT","z":"Europe/Rome","s":"Latium"},"MXP":{"c":"Milan","n":"IT","z":"Europe/Rome","s":"Lombardy"},"LIN":{"c":"Milan","n":"IT","z":"Europe/Rome","s":"Lombardy"},"ZRH":{"c":"Zurich","n":"CH","z":"Europe/Zurich","s":"Zurich"},"GVA":{"c":"Geneva","n":"CH","z":"Europe/Zurich","s":"Geneva"},"VIE":{"c":"Vienna","n":"AT","z":"Europe/Vienna","s":"Lower-Austria"},"BRU":{"c":"Brussels","n":"BE","z":"Europe/Brussels","s":"Flanders"},"CPH":{"c":"Copenhagen","n":"DK","z":"Europe/Copenhagen","s":"Capital-Region"},"ARN":{"c":"Stockholm","n":"SE","z":"Europe/Stockholm","s":"Stockholm"},"OSL":{"c":"Oslo","n":"NO","z":"Europe/Oslo","s":"Akershus"},"HEL":{"c":"Helsinki","n":"FI","z":"Europe/Helsinki","s":"Uusimaa"},"DUB":{"c":"Dublin","n":"IE","z":"Europe/Dublin","s":"Leinster"},"LIS":{"c":"Lisbon","n":"PT","z":"Europe/Lisbon","s":"Lisbon"},"ATH":{"c":"Athens","n":"GR","z":"Europe/Athens","s":"Attica"},"IST":{"c":"Istanbul","n":"TR","z":"Europe/Istanbul","s":"Istanbul"},"SAW":{"c":"Istanbul","n":"TR","z":"Europe/Istanbul","s":"Istanbul"},"WAW":{"c":"Warsaw","n":"PL","z":"Europe/Warsaw","s":"Mazovia"},"KRK":{"c":"Krak\u00f3w","n":"PL","z":"Europe/Warsaw","s":"Lesser-Poland-Voivodeship"},"PRG":{"c":"Prague","n":"CZ","z":"Europe/Prague","s":"Praha"},"BUD":{"c":"Budapest","n":"HU","z":"Europe/Budapest","s":"Budapest"},"OTP":{"c":"Bucharest","n":"RO","z":"Europe/Bucharest","s":"Ilfov"},"SOF":{"c":"Sofia","n":"BG","z":"Europe/Sofia","s":"Sofia-Capital"},"BEG":{"c":"Belgrade","n":"RS","z":"Europe/Belgrade"},"ZAG":{"c":"Zagreb","n":"HR","z":"Europe/Zagreb","s":"Zagrebacka"},"LJU":{"c":"Ljubljana","n":"SI","z":"Europe/Ljubljana","s":"Cerklje-na-Gorenjskem"},"RIX":{"c":"Riga","n":"LV","z":"Europe/Riga","s":"Marupe"},"TLL":{"c":"Tallinn","n":"EE","z":"Europe/Tallinn","s":"Harjumaa"},"VNO":{"c":"Vilnius","n":"LT","z":"Europe/Vilnius","s":"Vilnius"},"KEF":{"c":"Reykjavik","n":"IS","z":"Atlantic/Reykjavik","s":"Southern Peninsula"},"LUX":{"c":"Luxembourg","n":"LU","z":"Europe/Luxembourg","s":"Luxembourg"},"MLA":{"c":"Malta","n":"MT","z":"Europe/Malta","s":"Luqa"},"MAN":{"c":"Manchester","n":"GB","z":"Europe/London","s":"England"},"EDI":{"c":"Edinburgh","n":"GB","z":"Europe/London","s":"Scotland"},"GLA":{"c":"Glasgow","n":"GB","z":"Europe/London","s":"Scotland"},"BFS":{"c":"Belfast","n":"GB","z":"Europe/London","s":"Northern Ireland"},"SVO":{"c":"Moscow","n":"RU","z":"Europe/Moscow","s":"Moscow-Oblast"},"DME":{"c":"Moscow","n":"RU","z":"Europe/Moscow","s":"Moscow-Oblast"},"LED":{"c":"St. Petersburg","n":"RU","z":"Europe/Moscow","s":"Leningradskaya-Oblast'"},"DXB":{"c":"Dubai","n":"AE","z":"Asia/Dubai","s":"Dubai"},"AUH":{"c":"Abu Dhabi","n":"AE","z":"Asia/Dubai","s":"Abu Dhabi"},"DOH":{"c":"Doha","n":"QA","z":"Asia/Qatar","s":"Baladiyat-ad-Daw\u1e29ah"},"JED":{"c":"Jeddah","n":"SA","z":"Asia/Riyadh","s":"Makkah"},"RUH":{"c":"Riyadh","n":"SA","z":"Asia/Riyadh"},"DMM":{"c":"Ad Dammam","n":"SA","z":"Asia/Riyadh","s":"Eastern Province"},"KWI":{"c":"Kuwait City","n":"KW","z":"Asia/Kuwait"},"BAH":{"c":"Manama","n":"BH","z":"Asia/Bahrain","s":"Muharraq"},"MCT":{"c":"Muscat","n":"OM","z":"Asia/Muscat","s":"Muscat"},"AMM":{"c":"Amman","n":"JO","z":"Asia/Amman","s":"Amman"},"BEY":{"c":"Beirut","n":"LB","z":"Asia/Beirut","s":"Mont-Liban"},"TLV":{"c":"Tel Aviv","n":"IL","z":"Asia/Jerusalem","s":"Central District"},"THR":{"c":"Tehran","n":"IR","z":"Asia/Tehran","s":"Tehran"},"BGW":{"c":"Baghdad","n":"IQ","z":"Asia/Baghdad","s":"Baghdad"},"EBL":{"c":"Arbil","n":"IQ","z":"Asia/Baghdad","s":"Arbil"},"CAI":{"c":"Cairo","n":"EG","z":"Africa/Cairo","s":"Cairo"},"JNB":{"c":"Johannesburg","n":"ZA","z":"Africa/Johannesburg","s":"Gauteng"},"CPT":{"c":"Cape Town","n":"ZA","z":"Africa/Johannesburg","s":"Western Cape"},"DUR":{"c":"Durban","n":"ZA","z":"Africa/Johannesburg","s":"KwaZulu-Natal"},"LOS":{"c":"Lagos","n":"NG","z":"Africa/Lagos","s":"Lagos"},"ABV":{"c":"Abuja","n":"NG","z":"Africa/Lagos","s":"FCT"},"ACC":{"c":"Accra","n":"GH","z":"Africa/Accra"},"NBO":{"c":"Nairobi","n":"KE","z":"Africa/Nairobi","s":"Nairobi-Area"},"ADD":{"c":"Addis Ababa","n":"ET","z":"Africa/Addis_Ababa","s":"Addis-Ababa"},"DAR":{"c":"Dar es Salaam","n":"TZ","z":"Africa/Dar_es_Salaam","s":"Dar-es-Salaam"},"KGL":{"c":"Kigali","n":"RW","z":"Africa/Kigali","s":"Kigali"},"LUN":{"c":"Lusaka","n":"ZM","z":"Africa/Lusaka","s":"Lusaka"},"HRE":{"c":"Harare","n":"ZW","z":"Africa/Harare","s":"Harare"},"CMN":{"c":"Casablanca","n":"MA","z":"Africa/Casablanca"},"TUN":{"c":"Tunis","n":"TN","z":"Africa/Tunis","s":"Tunis"},"ALG":{"c":"Algiers","n":"DZ","z":"Africa/Algiers","s":"Algiers"},"TIP":{"c":"Tripoli","n":"LY","z":"Africa/Tripoli"},"KRT":{"c":"Khartoum","n":"SD","z":"Africa/Khartoum","s":"Khartoum"},"DKR":{"c":"Dakar","n":"SN","z":"Africa/Dakar","s":"Dakar"},"ABJ":{"c":"Abidjan","n":"CI","z":"Africa/Abidjan","s":"Lagunes"},"NRT":{"c":"Tokyo","n":"JP","z":"Asia/Tokyo","s":"Chiba"},"HND":{"c":"Tokyo","n":"JP","z":"Asia/Tokyo","s":"Tokyo"},"KIX":{"c":"Osaka","n":"JP","z":"Asia/Tokyo","s":"Osaka"},"ITM":{"c":"Osaka","n":"JP","z":"Asia/Tokyo","s":"Hyogo"},"ICN":{"c":"Seoul","n":"KR","z":"Asia/Seoul","s":"Incheon"},"GMP":{"c":"Seoul","n":"KR","z":"Asia/Seoul","s":"Seoul"},"PEK":{"c":"Beijing","n":"CN","z":"Asia/Shanghai","s":"Beijing"},"PKX":{"c":"Beijing","n":"CN","z":"Asia/Shanghai","s":"Beijing"},"PVG":{"c":"Shanghai","n":"CN","z":"Asia/Shanghai","s":"Shanghai"},"SHA":{"c":"Shanghai","n":"CN","z":"Asia/Shanghai","s":"Shanghai"},"CAN":{"c":"Guangzhou","n":"CN","z":"Asia/Shanghai","s":"Guangdong"},"SZX":{"c":"Shenzhen","n":"CN","z":"Asia/Shanghai","s":"Guangdong"},"HKG":{"c":"Hong Kong","n":"HK","z":"Asia/Hong_Kong"},"TPE":{"c":"Taipei","n":"TW","z":"Asia/Taipei","s":"Taiwan"},"TSA":{"c":"Taipei City","n":"TW","z":"Asia/Taipei","s":"Taiwan"},"MNL":{"c":"Manila","n":"PH","z":"Asia/Manila"},"CEB":{"c":"Lapu-Lapu City","n":"PH","z":"Asia/Manila","s":"Central Visayas"},"SIN":{"c":"Singapore","n":"SG","z":"Asia/Singapore","s":"North East"},"KUL":{"c":"Kuala Lumpur","n":"MY","z":"Asia/Kuala_Lumpur"},"BKK":{"c":"Bangkok","n":"TH","z":"Asia/Bangkok","s":"Samut-Prakan"},"DMK":{"c":"Bangkok","n":"TH","z":"Asia/Bangkok","s":"Bangkok"},"CGK":{"c":"Jakarta","n":"ID","z":"Asia/Jakarta","s":"Jakarta"},"HAN":{"c":"Hanoi","n":"VN","z":"Asia/Ho_Chi_Minh","s":"Ha-N\u1ed9i"},"SGN":{"c":"Ho Chi Minh City","n":"VN","z":"Asia/Ho_Chi_Minh","s":"Ho-Chi-Minh-City"},"DPS":{"c":"Bali (Denpasar)","n":"ID","z":"Asia/Makassar","s":"Bali"},"RGN":{"c":"Yangon","n":"MM","z":"Asia/Yangon","s":"Yangon"},"KTI":{"c":"Phnom Penh","n":"KH","z":"Asia/Phnom_Penh","s":"Kandal"},"VTE":{"c":"Vientiane","n":"LA","z":"Asia/Vientiane","s":"Vientiane-Prefecture"},"DEL":{"c":"New Delhi","n":"IN","z":"Asia/Kolkata","s":"Delhi"},"BOM":{"c":"Mumbai","n":"IN","z":"Asia/Kolkata","s":"Maharashtra"},"BLR":{"c":"Bangalore","n":"IN","z":"Asia/Kolkata","s":"Karnataka"},"MAA":{"c":"Chennai","n":"IN","z":"Asia/Kolkata","s":"Tamil Nadu"},"CCU":{"c":"Kolkata","n":"IN","z":"Asia/Kolkata","s":"West Bengal"},"HYD":{"c":"Hyderabad","n":"IN","z":"Asia/Kolkata","s":"Telangana"},"DAC":{"c":"Dhaka","n":"BD","z":"Asia/Dhaka","s":"Dhaka"},"CMB":{"c":"Colombo","n":"LK","z":"Asia/Colombo","s":"Western Province"},"KTM":{"c":"Kathmandu","n":"NP","z":"Asia/Kathmandu","s":"Central Region"},"ISB":{"c":"Islamabad","n":"PK","z":"Asia/Karachi","s":"Punjab"},"KHI":{"c":"Karachi","n":"PK","z":"Asia/Karachi","s":"Sindh"},"LHE":{"c":"Lahore","n":"PK","z":"Asia/Karachi","s":"Punjab"},"TAS":{"c":"Tashkent","n":"UZ","z":"Asia/Samarkand","s":"Toshkent-Shahri"},"ALA":{"c":"Almaty","n":"KZ","z":"Asia/Almaty","s":"Almaty-Oblysy"},"NQZ":{"c":"Astana","n":"KZ","z":"Asia/Almaty","s":"Aqmola"},"TBS":{"c":"Tbilisi","n":"GE","z":"Asia/Tbilisi"},"GYD":{"c":"Baku","n":"AZ","z":"Asia/Baku","s":"Bak\u0131"},"EVN":{"c":"Yerevan","n":"AM","z":"Asia/Yerevan"},"ULN":{"c":"Ulan Bator","n":"MN","z":"Asia/Ulaanbaatar","s":"Ulaanbaatar"},"VVO":{"c":"Vladivostok","n":"RU","z":"Asia/Vladivostok","s":"Primorskiy"},"SYD":{"c":"Sydney","n":"AU","z":"Australia/Sydney","s":"New South Wales"},"MEL":{"c":"Melbourne","n":"AU","z":"Australia/Melbourne","s":"Victoria"},"BNE":{"c":"Brisbane","n":"AU","z":"Australia/Brisbane","s":"Queensland"},"PER":{"c":"Perth","n":"AU","z":"Australia/Perth","s":"Western Australia"},"ADL":{"c":"Adelaide","n":"AU","z":"Australia/Adelaide","s":"South Australia"},"DRW":{"c":"Darwin","n":"AU","z":"Australia/Darwin","s":"Northern Territory"},"CBR":{"c":"Canberra","n":"AU","z":"Australia/Sydney","s":"ACT"},"HBA":{"c":"Hobart","n":"AU","z":"Australia/Hobart","s":"Tasmania"},"CNS":{"c":"Cairns","n":"AU","z":"Australia/Brisbane","s":"Queensland"},"OOL":{"c":"Gold Coast","n":"AU","z":"Australia/Brisbane","s":"Queensland"},"AKL":{"c":"Auckland","n":"NZ","z":"Pacific/Auckland","s":"Auckland"},"WLG":{"c":"Wellington","n":"NZ","z":"Pacific/Auckland","s":"Wellington"},"CHC":{"c":"Christchurch","n":"NZ","z":"Pacific/Auckland","s":"Canterbury"},"ZQN":{"c":"Queenstown","n":"NZ","z":"Pacific/Auckland","s":"Otago"},"DUD":{"c":"Dunedin","n":"NZ","z":"Pacific/Auckland","s":"Otago"},"ROT":{"c":"Rotorua","n":"NZ","z":"Pacific/Auckland","s":"Auckland"},"NAN":{"c":"Nadi","n":"FJ","z":"Pacific/Fiji","s":"Western"},"SUV":{"c":"Nausori","n":"FJ","z":"Pacific/Fiji","s":"Central"},"APW":{"c":"Apia","n":"WS","z":"Pacific/Apia","s":"A'ana"},"TBU":{"c":"Nuku'alofa","n":"TO","z":"Pacific/Tongatapu","s":"Tongatapu"},"PPG":{"c":"Pago Pago","n":"AS","z":"Pacific/Pago_Pago"},"POM":{"c":"Port Moresby","n":"PG","z":"Pacific/Port_Moresby","s":"National Capital"},"HIR":{"c":"Honiara","n":"SB","z":"Pacific/Guadalcanal","s":"Guadalcanal"},"VLI":{"c":"Port Vila","n":"VU","z":"Pacific/Efate","s":"Shefa"},"NOU":{"c":"Noumea","n":"NC","z":"Pacific/Noumea","s":"South Province"},"PPT":{"c":"Papeete","n":"PF","z":"Pacific/Tahiti","s":"Iles-du-Vent"},"RAR":{"c":"Avarua","n":"CK","z":"Pacific/Rarotonga"},"FUN":{"c":"Funafuti","n":"TV","z":"Pacific/Funafuti","s":"Funafuti"},"TRW":{"c":"Tarawa","n":"KI","z":"Pacific/Tarawa","s":"Gilbert-Islands"},"CXI":{"c":"Kiritimati (Christmas Island)","n":"KI","z":"Pacific/Kiritimati","s":"Line-Islands"},"MAJ":{"c":"Majuro","n":"MH","z":"Pacific/Majuro"},"GUM":{"c":"Guam","n":"GU","z":"Pacific/Guam"},"SPN":{"c":"Saipan","n":"MP","z":"Pacific/Saipan"},"PNI":{"c":"Pohnpei","n":"FM","z":"Pacific/Pohnpei"},"ROR":{"c":"Koror","n":"PW","z":"Pacific/Palau"},"WLS":{"c":"Wallis Island","n":"WF","z":"Pacific/Wallis","s":"Uvea"},"CHT":{"c":"Waitangi","n":"NZ","z":"Pacific/Chatham","s":"Chatham Islands"}};
+
+  var COUNTRY_NAMES = {"AE":"United Arab Emirates","AM":"Armenia","AR":"Argentina","AS":"American Samoa","AT":"Austria","AU":"Australia","AZ":"Azerbaijan","BD":"Bangladesh","BE":"Belgium","BG":"Bulgaria","BH":"Bahrain","BO":"Bolivia","BR":"Brazil","BS":"Bahamas","CA":"Canada","CH":"Switzerland","CI":"Ivory Coast","CK":"Cook Islands","CL":"Chile","CN":"China","CO":"Colombia","CR":"Costa Rica","CU":"Cuba","CZ":"Czechia","DE":"Germany","DK":"Denmark","DZ":"Algeria","EC":"Ecuador","EE":"Estonia","EG":"Egypt","ES":"Spain","ET":"Ethiopia","FI":"Finland","FJ":"Fiji","FM":"Micronesia","FR":"France","GB":"United Kingdom","GE":"Georgia","GH":"Ghana","GR":"Greece","GT":"Guatemala","GU":"Guam","HK":"Hong Kong","HN":"Honduras","HR":"Croatia","HU":"Hungary","ID":"Indonesia","IE":"Ireland","IL":"Israel","IN":"India","IQ":"Iraq","IR":"Iran","IS":"Iceland","IT":"Italy","JM":"Jamaica","JO":"Jordan","JP":"Japan","KE":"Kenya","KH":"Cambodia","KI":"Kiribati","KR":"South Korea","KW":"Kuwait","KZ":"Kazakhstan","LA":"Laos","LB":"Lebanon","LK":"Sri Lanka","LT":"Lithuania","LU":"Luxembourg","LV":"Latvia","LY":"Libya","MA":"Morocco","MH":"Marshall Islands","MM":"Myanmar","MN":"Mongolia","MP":"Northern Mariana Islands","MT":"Malta","MX":"Mexico","MY":"Malaysia","NC":"New Caledonia","NG":"Nigeria","NI":"Nicaragua","NL":"Netherlands","NO":"Norway","NP":"Nepal","NZ":"New Zealand","OM":"Oman","PA":"Panama","PE":"Peru","PF":"French Polynesia","PG":"Papua New Guinea","PH":"Philippines","PK":"Pakistan","PL":"Poland","PT":"Portugal","PW":"Palau","PY":"Paraguay","QA":"Qatar","RO":"Romania","RS":"Serbia","RU":"Russia","RW":"Rwanda","SA":"Saudi Arabia","SB":"Solomon Islands","SD":"Sudan","SE":"Sweden","SG":"Singapore","SI":"Slovenia","SN":"Senegal","SV":"El Salvador","TH":"Thailand","TN":"Tunisia","TO":"Tonga","TR":"Turkey","TT":"Trinidad and Tobago","TV":"Tuvalu","TW":"Taiwan","TZ":"Tanzania","US":"United States","UY":"Uruguay","UZ":"Uzbekistan","VE":"Venezuela","VN":"Vietnam","VU":"Vanuatu","WF":"Wallis and Futuna","WS":"Samoa","ZA":"South Africa","ZM":"Zambia","ZW":"Zimbabwe"};
+
+  var MS_PER_DAY = 86400000;
+  var WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  var FALLBACK_ZONES = ["UTC","Pacific/Kiritimati","Pacific/Chatham","Pacific/Apia","Pacific/Tongatapu","Pacific/Fiji","Pacific/Auckland","Pacific/Guadalcanal","Australia/Sydney","Australia/Adelaide","Australia/Darwin","Australia/Perth","Asia/Tokyo","Asia/Seoul","Asia/Shanghai","Asia/Hong_Kong","Asia/Singapore","Asia/Jakarta","Asia/Bangkok","Asia/Dhaka","Asia/Kathmandu","Asia/Kolkata","Asia/Karachi","Asia/Dubai","Asia/Tehran","Asia/Baghdad","Europe/Moscow","Europe/Istanbul","Europe/Athens","Europe/Helsinki","Europe/Paris","Europe/Berlin","Europe/London","Atlantic/Reykjavik","Atlantic/Azores","Atlantic/Cape_Verde","America/Sao_Paulo","America/Argentina/Buenos_Aires","America/Santiago","America/Halifax","America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Anchorage","Pacific/Honolulu","Pacific/Marquesas","Pacific/Pago_Pago","Africa/Cairo","Africa/Lagos","Africa/Nairobi","Africa/Johannesburg"];
+
+  function pad(n, w){ w = w || 2; var s = String(Math.trunc(n)); while (s.length < w) s = "0" + s; return s; }
+  function isLeapYear(y){ return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; }
+
+  function dayOfYearFromDate(y, m, d){
+    var monthDays = [31, isLeapYear(y) ? 29 : 28, 31,30,31,30,31,31,30,31,30,31];
+    var doy = d;
+    for (var i = 0; i < m - 1; i++) doy += monthDays[i];
+    return doy;
+  }
+  function dateFromDayOfYear(y, doy){
+    var monthDays = [31, isLeapYear(y) ? 29 : 28, 31,30,31,30,31,31,30,31,30,31];
+    var remaining = doy, month = 0;
+    while (month < 12 && remaining > monthDays[month]){ remaining -= monthDays[month]; month++; }
+    if (remaining < 1) remaining = 1;
+    return [month + 1, remaining];
+  }
+
+  function formatOffset(mins){
+    var sign = mins < 0 ? "\u2212" : "+";
+    var abs = Math.abs(mins);
+    return "UTC" + sign + pad(Math.floor(abs/60)) + ":" + pad(abs%60);
+  }
+
+  function formatPrettyDate(dateStr){
+    var p = dateStr.split("-").map(Number);
+    return MONTHS[p[1]-1] + " " + p[2] + ", " + p[0];
+  }
+
+  function zoneIdToLabel(zoneId){
+    if (zoneId === "UTC") return "UTC (Zulu)";
+    var parts = zoneId.split("/");
+    var city = parts[parts.length - 1].replace(/_/g, " ");
+    var region = parts.length > 1 ? parts[0] : "";
+    return region ? city + " \u2014 " + region : city;
+  }
+
+  function getOffsetMinutesAt(utcMs, timeZone){
+    try {
+      var dtf = new Intl.DateTimeFormat("en-US", {
+        timeZone: timeZone, hourCycle: "h23",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      });
+      var parts = dtf.formatToParts(new Date(utcMs));
+      var map = {};
+      parts.forEach(function(p){ if (p.type !== "literal") map[p.type] = p.value; });
+      var hh = map.hour === "24" ? 0 : Number(map.hour);
+      var asUTC = Date.UTC(Number(map.year), Number(map.month)-1, Number(map.day), hh, Number(map.minute), Number(map.second));
+      return Math.round((asUTC - utcMs) / 60000);
+    } catch (e){ return 0; }
+  }
+
+  function utcMsToWallPartsTZ(ms, timeZone){
+    try {
+      var dtf = new Intl.DateTimeFormat("en-US", {
+        timeZone: timeZone, hourCycle: "h23", weekday: "long",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      });
+      var parts = dtf.formatToParts(new Date(ms));
+      var map = {};
+      parts.forEach(function(p){ if (p.type !== "literal") map[p.type] = p.value; });
+      var hh = map.hour === "24" ? "00" : map.hour;
+      return { date: map.year + "-" + map.month + "-" + map.day, time: hh + ":" + map.minute + ":" + map.second, weekday: map.weekday };
+    } catch (e){
+      return { date: "0000-01-01", time: "00:00:00", weekday: "" };
+    }
+  }
+
+  function parseTime(timeStr){
+    if (!timeStr) return null;
+    var parts = timeStr.split(":").map(Number);
+    if (parts.length < 2 || parts.some(isNaN)) return null;
+    return [parts[0], parts[1], parts[2] || 0];
+  }
+
+  // Controlled 24-hour time mask: strips input to digits, caps at 4 (HHMM), displays as HH:MM.
+  // Returns {display, hh, mm} where hh/mm are only populated once 4 valid digits are present.
+  function maskTime24(rawValue){
+    var digits = rawValue.replace(/\D/g, "").slice(0, 4);
+    var display = digits.length <= 2 ? digits : digits.slice(0,2) + ":" + digits.slice(2);
+    var result = { display: display, hh: null, mm: null };
+    if (digits.length === 4){
+      var hh = parseInt(digits.slice(0,2), 10);
+      var mm = parseInt(digits.slice(2,4), 10);
+      if (hh <= 23 && mm <= 59){ result.hh = hh; result.mm = mm; }
+    }
+    return result;
+  }
+
+  function floorDateToDayNumber(dateStr){
+    var p = dateStr.split("-").map(Number);
+    return Math.floor(Date.UTC(p[0], p[1]-1, p[2]) / MS_PER_DAY);
+  }
+
+  /* ---------------- build location indices (airports + IANA city zones + single-tz countries) ---------------- */
+
+  var codeIndex = {}, labelIndex = {}, cityNameIndex = {}, countryNameIndex = {}, regionNameIndex = {};
+  var datalistLabels = [];
+
+  Object.keys(AIRPORTS).forEach(function(code){
+    var a = AIRPORTS[code];
+    var label = code + " \u2014 " + a.c + (a.s ? ", " + a.s : "") + ", " + a.n;
+    codeIndex[code] = a.z;
+    labelIndex[label.toLowerCase()] = a.z;
+    var cityLower = a.c.toLowerCase();
+    if (!(cityLower in cityNameIndex)) cityNameIndex[cityLower] = a.z;
+    datalistLabels.push(label);
+  });
+
+  var countryZones = {};
+  Object.keys(AIRPORTS).forEach(function(code){
+    var a = AIRPORTS[code];
+    if (!countryZones[a.n]) countryZones[a.n] = {};
+    countryZones[a.n][a.z] = true;
+  });
+  Object.keys(countryZones).forEach(function(cc){
+    var zones = Object.keys(countryZones[cc]);
+    if (zones.length === 1 && COUNTRY_NAMES[cc]){
+      var name = COUNTRY_NAMES[cc];
+      countryNameIndex[name.toLowerCase()] = zones[0];
+      datalistLabels.push(name + " (country)");
+    }
+  });
+
+  // states/provinces/territories (e.g. "Hawaii", "Puerto Rico") that are unambiguously a single time zone
+  var regionZones = {};
+  Object.keys(AIRPORTS).forEach(function(code){
+    var a = AIRPORTS[code];
+    if (!a.s) return;
+    var key = a.n + "|" + a.s;
+    if (!regionZones[key]) regionZones[key] = {};
+    regionZones[key][a.z] = true;
+  });
+  Object.keys(regionZones).forEach(function(key){
+    var zones = Object.keys(regionZones[key]);
+    if (zones.length === 1){
+      var region = key.split("|")[1];
+      if (!(region.toLowerCase() in regionNameIndex)){
+        regionNameIndex[region.toLowerCase()] = zones[0];
+        datalistLabels.push(region + " (region)");
+      }
+    }
+  });
+
+  var ZONE_IDS = (typeof Intl.supportedValuesOf === "function") ? Intl.supportedValuesOf("timeZone") : FALLBACK_ZONES;
+  if (ZONE_IDS.indexOf("UTC") === -1) ZONE_IDS = ["UTC"].concat(ZONE_IDS);
+  ZONE_IDS.forEach(function(zoneId){
+    var label = zoneIdToLabel(zoneId);
+    labelIndex[label.toLowerCase()] = zoneId;
+    var cityLower = label.split(" \u2014 ")[0].toLowerCase();
+    if (!(cityLower in cityNameIndex)) cityNameIndex[cityLower] = zoneId;
+    datalistLabels.push(label);
+  });
+
+  datalistLabels.sort();
+  var datalistEl = document.getElementById("locationList");
+  datalistLabels.forEach(function(label){
+    var opt = document.createElement("option");
+    opt.value = label;
+    datalistEl.appendChild(opt);
+  });
+
+  function resolveLocation(value){
+    if (!value) return null;
+    var trimmed = value.trim();
+    var upper = trimmed.toUpperCase();
+    if (/^[A-Z]{3}$/.test(upper) && codeIndex[upper]) return codeIndex[upper];
+    var lower = trimmed.toLowerCase().replace(/\s*\((country|region)\)\s*$/, "");
+    if (labelIndex[lower]) return labelIndex[lower];
+    if (cityNameIndex[lower]) return cityNameIndex[lower];
+    if (countryNameIndex[lower]) return countryNameIndex[lower];
+    if (regionNameIndex[lower]) return regionNameIndex[lower];
+    return null;
+  }
+
+  /* ================= elements ================= */
+
+  var originLocation = document.getElementById("originLocation");
+  var originNote = document.getElementById("originNote");
+  var originWeekday = document.getElementById("originWeekday");
+  var originLocalDate = document.getElementById("originLocalDate");
+  var originLocalTime = document.getElementById("originLocalTime");
+
+  var destLocation = document.getElementById("destLocation");
+  var destNote = document.getElementById("destNote");
+  var destWeekday = document.getElementById("destWeekday");
+  var destLocalDate = document.getElementById("destLocalDate");
+  var destLocalTime = document.getElementById("destLocalTime");
+
+  var depSjd = document.getElementById("depSjd");
+  var depLjd = document.getElementById("depLjd");
+  var depDate = document.getElementById("depDate");
+  var depZuluTime = document.getElementById("depZuluTime");
+
+  var arrSjd = document.getElementById("arrSjd");
+  var arrLjd = document.getElementById("arrLjd");
+  var arrDate = document.getElementById("arrDate");
+  var arrZuluTime = document.getElementById("arrZuluTime");
+
+  var depJulianGroup = document.getElementById("depJulianGroup");
+  var depCalendarGroup = document.getElementById("depCalendarGroup");
+  var arrJulianGroup = document.getElementById("arrJulianGroup");
+  var arrCalendarGroup = document.getElementById("arrCalendarGroup");
+  var julianToggle = document.getElementById("julianToggle");
+  var yearToggle = document.getElementById("yearToggle");
+  var yearToggleWrap = document.getElementById("yearToggleWrap");
+  var depLjdGroup = document.getElementById("depLjdGroup");
+  var arrLjdGroup = document.getElementById("arrLjdGroup");
+
+  var durationText = document.getElementById("durationText");
+  var arrivalHeadline = document.getElementById("arrivalHeadline");
+  var idlBanner = document.getElementById("idlBanner");
+
+  var originTZ = "UTC";
+  var destTZ = "Pacific/Fiji";
+  var dep = { utcMs: Date.now() };
+  var arr = { utcMs: Date.now() };
+
+  /* ---- Zulu-side fields (Julian day / long Julian date / Zulu time) for a leg ---- */
+
+  function renderZulu(leg, excludeField){
+    var ms = leg.utcMs;
+    var d = new Date(ms);
+    var y = d.getUTCFullYear();
+    var doy = dayOfYearFromDate(y, d.getUTCMonth()+1, d.getUTCDate());
+    var sjdEl = leg === dep ? depSjd : arrSjd;
+    var ljdEl = leg === dep ? depLjd : arrLjd;
+    var dateEl = leg === dep ? depDate : arrDate;
+    var timeEl = leg === dep ? depZuluTime : arrZuluTime;
+    // Julian Day and the plain calendar date are just two representations of the same
+    // Zulu calendar date, so both are always kept in sync regardless of which one is visible.
+    if (excludeField !== "sjd") sjdEl.value = pad(doy, 3);
+    if (excludeField !== "ljd") ljdEl.value = pad(y % 100, 2) + pad(doy, 3);
+    if (excludeField !== "date") dateEl.value = y + "-" + pad(d.getUTCMonth()+1) + "-" + pad(d.getUTCDate());
+    if (excludeField !== "time") timeEl.value = utcMsToWallPartsTZ(ms, "UTC").time.slice(0,5);
+  }
+
+  function renderLocal(leg, zone, weekdayEl, dateEl, timeEl, noteEl){
+    var w = utcMsToWallPartsTZ(leg.utcMs, zone);
+    weekdayEl.textContent = w.weekday;
+    dateEl.textContent = formatPrettyDate(w.date);
+    timeEl.textContent = w.time.slice(0,5) + (zone === "UTC" ? "Z" : "");
+    noteEl.textContent = zone + " \u00B7 " + formatOffset(getOffsetMinutesAt(leg.utcMs, zone));
+    noteEl.classList.remove("error");
+  }
+
+  function renderOrigin(){ renderLocal(dep, originTZ, originWeekday, originLocalDate, originLocalTime, originNote); }
+  function renderDest(){ renderLocal(arr, destTZ, destWeekday, destLocalDate, destLocalTime, destNote); }
+
+  function updateSummary(){
+    var durMs = arr.utcMs - dep.utcMs;
+    if (durMs < 0){
+      durationText.textContent = "Negative \u2014 check dates";
+    } else {
+      var totalMin = Math.round(durMs / 60000);
+      var hh = Math.floor(totalMin / 60), mm = totalMin % 60;
+      durationText.textContent = hh + "h " + pad(mm) + "m";
+    }
+
+    var originLocal = utcMsToWallPartsTZ(dep.utcMs, originTZ);
+    var destLocal = utcMsToWallPartsTZ(arr.utcMs, destTZ);
+    var zSuffix = destTZ === "UTC" ? "Z" : "";
+    arrivalHeadline.textContent = destLocal.weekday.slice(0,3) + " " + formatPrettyDate(destLocal.date) + ", " + destLocal.time.slice(0,5) + zSuffix;
+
+    var dayDiff = floorDateToDayNumber(destLocal.date) - floorDateToDayNumber(originLocal.date);
+    var originOffset = getOffsetMinutesAt(dep.utcMs, originTZ);
+    var destOffset = getOffsetMinutesAt(arr.utcMs, destTZ);
+    var isCrossing = Math.abs((originOffset - destOffset) / 60) > 12;
+
+    if (isCrossing){
+      idlBanner.className = "banner crossing";
+      if (dayDiff !== 0){
+        var word = Math.abs(dayDiff) === 1 ? "day" : "days";
+        idlBanner.innerHTML = "<span class=\"glyph\">\u26A0</span><strong>International Date Line crossing</strong> \u2014 you depart " + originLocal.weekday.slice(0,3) + " " + formatPrettyDate(originLocal.date) + " local, and arrive " + destLocal.weekday.slice(0,3) + " " + formatPrettyDate(destLocal.date) + " local \u2014 a difference of " + Math.abs(dayDiff) + " " + word + ". Book hotels and ground plans against the arrival date shown above, not the departure date.";
+      } else {
+        idlBanner.innerHTML = "<span class=\"glyph\">\u26A0</span><strong>International Date Line crossing</strong> \u2014 Origin and Destination sit on opposite sides of the IDL, though the local calendar date happens to match on both ends for this particular flight.";
+      }
+    } else {
+      idlBanner.className = "banner";
+      if (dayDiff !== 0){
+        var word2 = Math.abs(dayDiff) === 1 ? "day" : "days";
+        idlBanner.textContent = "No International Date Line crossing. Local calendar dates differ by " + Math.abs(dayDiff) + " " + word2 + " between departure and arrival \u2014 the ordinary effect of flight time and the time-zone change.";
+      } else {
+        idlBanner.textContent = "No International Date Line crossing. You arrive on the same local calendar date you departed.";
+      }
+    }
+  }
+
+  function refreshAll(){
+    renderZulu(dep, null);
+    renderZulu(arr, null);
+    renderOrigin();
+    renderDest();
+    updateSummary();
+  }
+
+  /* ---- events: departure leg ---- */
+
+  depSjd.addEventListener("input", function(){
+    var raw = depSjd.value.replace(/\D/g, "");
+    if (raw.length < 1) return;
+    var doy = parseInt(raw, 10);
+    if (!isFinite(doy) || doy < 1) return;
+    var year = new Date(dep.utcMs).getUTCFullYear();
+    var maxDoy = isLeapYear(year) ? 366 : 365;
+    doy = Math.min(doy, maxDoy);
+    var parts = dateFromDayOfYear(year, doy);
+    var cur = new Date(dep.utcMs);
+    dep.utcMs = Date.UTC(year, parts[0]-1, parts[1], cur.getUTCHours(), cur.getUTCMinutes(), cur.getUTCSeconds());
+    renderZulu(dep, "sjd"); renderOrigin(); updateSummary();
+  });
+
+  depLjd.addEventListener("input", function(){
+    var raw = depLjd.value.replace(/\D/g, "");
+    if (raw.length < 1) return;
+    var doyStr = raw.length >= 3 ? raw.slice(-3) : raw;
+    var doy = parseInt(doyStr, 10);
+    if (!isFinite(doy) || doy < 1) return;
+    var year = raw.length >= 5 ? (2000 + parseInt(raw.slice(0, raw.length - 3), 10)) : new Date(dep.utcMs).getUTCFullYear();
+    var maxDoy = isLeapYear(year) ? 366 : 365;
+    doy = Math.min(doy, maxDoy);
+    var parts = dateFromDayOfYear(year, doy);
+    var cur = new Date(dep.utcMs);
+    dep.utcMs = Date.UTC(year, parts[0]-1, parts[1], cur.getUTCHours(), cur.getUTCMinutes(), cur.getUTCSeconds());
+    renderZulu(dep, "ljd"); renderOrigin(); updateSummary();
+  });
+
+  function onDepZuluTimeChange(){
+    var m = maskTime24(depZuluTime.value);
+    depZuluTime.value = m.display;
+    if (m.hh === null) return;
+    var cur = new Date(dep.utcMs);
+    dep.utcMs = Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate(), m.hh, m.mm, 0);
+    renderZulu(dep, "time"); renderOrigin(); updateSummary();
+  }
+  depZuluTime.addEventListener("input", onDepZuluTimeChange);
+  depZuluTime.addEventListener("focus", function(){ this.select(); });
+  depSjd.addEventListener("focus", function(){ this.select(); });
+  depLjd.addEventListener("focus", function(){ this.select(); });
+
+  depDate.addEventListener("input", function(){
+    var v = depDate.value;
+    if (!v) return;
+    var parts = v.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return;
+    var cur = new Date(dep.utcMs);
+    dep.utcMs = Date.UTC(parts[0], parts[1]-1, parts[2], cur.getUTCHours(), cur.getUTCMinutes(), cur.getUTCSeconds());
+    renderZulu(dep, "date"); renderOrigin(); updateSummary();
+  });
+
+  /* ---- events: arrival leg ---- */
+
+  arrSjd.addEventListener("input", function(){
+    var raw = arrSjd.value.replace(/\D/g, "");
+    if (raw.length < 1) return;
+    var doy = parseInt(raw, 10);
+    if (!isFinite(doy) || doy < 1) return;
+    var year = new Date(arr.utcMs).getUTCFullYear();
+    var maxDoy = isLeapYear(year) ? 366 : 365;
+    doy = Math.min(doy, maxDoy);
+    var parts = dateFromDayOfYear(year, doy);
+    var cur = new Date(arr.utcMs);
+    arr.utcMs = Date.UTC(year, parts[0]-1, parts[1], cur.getUTCHours(), cur.getUTCMinutes(), cur.getUTCSeconds());
+    renderZulu(arr, "sjd"); renderDest(); updateSummary();
+  });
+
+  arrLjd.addEventListener("input", function(){
+    var raw = arrLjd.value.replace(/\D/g, "");
+    if (raw.length < 1) return;
+    var doyStr = raw.length >= 3 ? raw.slice(-3) : raw;
+    var doy = parseInt(doyStr, 10);
+    if (!isFinite(doy) || doy < 1) return;
+    var year = raw.length >= 5 ? (2000 + parseInt(raw.slice(0, raw.length - 3), 10)) : new Date(arr.utcMs).getUTCFullYear();
+    var maxDoy = isLeapYear(year) ? 366 : 365;
+    doy = Math.min(doy, maxDoy);
+    var parts = dateFromDayOfYear(year, doy);
+    var cur = new Date(arr.utcMs);
+    arr.utcMs = Date.UTC(year, parts[0]-1, parts[1], cur.getUTCHours(), cur.getUTCMinutes(), cur.getUTCSeconds());
+    renderZulu(arr, "ljd"); renderDest(); updateSummary();
+  });
+
+  function onArrZuluTimeChange(){
+    var m = maskTime24(arrZuluTime.value);
+    arrZuluTime.value = m.display;
+    if (m.hh === null) return;
+    var cur = new Date(arr.utcMs);
+    arr.utcMs = Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate(), m.hh, m.mm, 0);
+    renderZulu(arr, "time"); renderDest(); updateSummary();
+  }
+  arrZuluTime.addEventListener("input", onArrZuluTimeChange);
+  arrZuluTime.addEventListener("focus", function(){ this.select(); });
+  arrSjd.addEventListener("focus", function(){ this.select(); });
+  arrLjd.addEventListener("focus", function(){ this.select(); });
+
+  arrDate.addEventListener("input", function(){
+    var v = arrDate.value;
+    if (!v) return;
+    var parts = v.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return;
+    var cur = new Date(arr.utcMs);
+    arr.utcMs = Date.UTC(parts[0], parts[1]-1, parts[2], cur.getUTCHours(), cur.getUTCMinutes(), cur.getUTCSeconds());
+    renderZulu(arr, "date"); renderDest(); updateSummary();
+  });
+
+  julianToggle.addEventListener("change", function(){
+    var on = julianToggle.checked;
+    depJulianGroup.style.display = on ? "" : "none";
+    arrJulianGroup.style.display = on ? "" : "none";
+    depCalendarGroup.style.display = on ? "none" : "";
+    arrCalendarGroup.style.display = on ? "none" : "";
+    yearToggleWrap.style.display = on ? "" : "none";
+  });
+
+  function updateLjdVisibility(){
+    var show = yearToggle.checked;
+    depLjdGroup.style.display = show ? "" : "none";
+    arrLjdGroup.style.display = show ? "" : "none";
+  }
+  yearToggle.addEventListener("change", updateLjdVisibility);
+
+  document.querySelectorAll(".info-icon").forEach(function(icon){
+    icon.addEventListener("click", function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll(".info-icon.active").forEach(function(other){
+        if (other !== icon) other.classList.remove("active");
+      });
+      icon.classList.toggle("active");
+    });
+    icon.addEventListener("keydown", function(e){
+      if (e.key === "Enter" || e.key === " "){
+        e.preventDefault();
+        icon.classList.toggle("active");
+      }
+    });
+  });
+  document.addEventListener("click", function(e){
+    document.querySelectorAll(".info-icon.active").forEach(function(icon){
+      if (!icon.contains(e.target)) icon.classList.remove("active");
+    });
+  });
+
+  /* ---- location resolution ---- */
+
+  originLocation.addEventListener("change", function(){
+    var tz = resolveLocation(originLocation.value);
+    if (!tz){
+      originNote.textContent = "Not recognized \u2014 pick a suggestion, or try a city name, country, or 3-letter airport code.";
+      originNote.classList.add("error");
+      return;
+    }
+    originTZ = tz;
+    originLocation.value = zoneIdToLabel(tz);
+    renderOrigin();
+    updateSummary();
+  });
+
+  destLocation.addEventListener("change", function(){
+    var tz = resolveLocation(destLocation.value);
+    if (!tz){
+      destNote.textContent = "Not recognized \u2014 pick a suggestion, or try a city name, country, or 3-letter airport code.";
+      destNote.classList.add("error");
+      return;
+    }
+    destTZ = tz;
+    destLocation.value = zoneIdToLabel(tz);
+    renderDest();
+    updateSummary();
+  });
+
+  /* ---- buttons ---- */
+
+  document.getElementById("presetZuluOrigin").addEventListener("click", function(){
+    originTZ = "UTC";
+    originLocation.value = zoneIdToLabel("UTC");
+    renderOrigin(); updateSummary();
+  });
+
+  document.getElementById("presetZuluDest").addEventListener("click", function(){
+    destTZ = "UTC";
+    destLocation.value = zoneIdToLabel("UTC");
+    renderDest(); updateSummary();
+  });
+
+  document.getElementById("swapBtn").addEventListener("click", function(){
+    var tmpTZ = originTZ; originTZ = destTZ; destTZ = tmpTZ;
+    var tmpLoc = originLocation.value; originLocation.value = destLocation.value; destLocation.value = tmpLoc;
+    var tmpMs = dep.utcMs; dep.utcMs = arr.utcMs; arr.utcMs = tmpMs;
+    refreshAll();
+  });
+
+  document.getElementById("useNowBtn").addEventListener("click", function(){
+    dep.utcMs = Date.now();
+    var deviceTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    originTZ = deviceTZ;
+    originLocation.value = zoneIdToLabel(deviceTZ);
+    renderZulu(dep, null); renderOrigin(); updateSummary();
+  });
+
+  document.querySelectorAll(".copy-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var el = document.getElementById(btn.getAttribute("data-copy-target"));
+      var text = el.value;
+      var done = function(){
+        var original = btn.textContent;
+        btn.textContent = "Copied";
+        btn.classList.add("copied");
+        setTimeout(function(){ btn.textContent = original; btn.classList.remove("copied"); }, 1100);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done).catch(function(){ el.select(); document.execCommand("copy"); done(); });
+      } else { el.select(); document.execCommand("copy"); done(); }
+    });
+  });
+
+  /* ---- initial state: departure = now at device's zone; arrival = +10.5h demo, destination = Fiji ---- */
+  (function init(){
+    var deviceTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    originTZ = deviceTZ;
+    destTZ = "Pacific/Fiji";
+    dep.utcMs = Date.now();
+    arr.utcMs = dep.utcMs + 10.5 * 3600000;
+    originLocation.value = zoneIdToLabel(deviceTZ);
+    destLocation.value = zoneIdToLabel("Pacific/Fiji");
+    refreshAll();
+  })();
+
+  /* ================= Live hero clock ================= */
+
+  var liveUtc = document.getElementById("liveUtc");
+  function tick(){
+    var p = utcMsToWallPartsTZ(Date.now(), "UTC");
+    liveUtc.textContent = p.date + " " + p.time + "Z";
+  }
+  tick();
+  setInterval(tick, 1000);
+
+})();
+</script>
+</body>
+</html>
