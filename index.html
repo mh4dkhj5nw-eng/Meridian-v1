@@ -118,6 +118,10 @@
   select, input[type="date"], input[type="time"], input[type="text"]{
     width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px;
     padding: 0.55rem 0.65rem; font-size: 0.95rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    box-sizing: border-box; min-width: 0; max-width: 100%;
+  }
+  input[type="date"]{
+    -webkit-appearance: none; appearance: none;
   }
   select:focus, input:focus{ border-color: var(--cyan); }
 
@@ -1094,6 +1098,22 @@
   }
   yearToggle.addEventListener("change", updateLjdVisibility);
 
+  function positionTooltip(icon){
+    var tooltip = icon.querySelector(".info-tooltip");
+    if (!tooltip) return;
+    var iconRect = icon.getBoundingClientRect();
+    var margin = 10;
+    var tooltipWidth = tooltip.offsetWidth || 200;
+    var desiredLeft = iconRect.right - tooltipWidth; // default: right-align with icon, as CSS does
+    var maxLeft = window.innerWidth - tooltipWidth - margin;
+    var clampedLeft = Math.min(Math.max(desiredLeft, margin), Math.max(maxLeft, margin));
+    tooltip.style.position = "fixed";
+    tooltip.style.left = clampedLeft + "px";
+    tooltip.style.right = "auto";
+    tooltip.style.bottom = (window.innerHeight - iconRect.top + 6) + "px";
+    tooltip.style.top = "auto";
+  }
+
   document.querySelectorAll(".info-icon").forEach(function(icon){
     icon.addEventListener("click", function(e){
       e.preventDefault();
@@ -1102,13 +1122,17 @@
         if (other !== icon) other.classList.remove("active");
       });
       icon.classList.toggle("active");
+      if (icon.classList.contains("active")) positionTooltip(icon);
     });
     icon.addEventListener("keydown", function(e){
       if (e.key === "Enter" || e.key === " "){
         e.preventDefault();
         icon.classList.toggle("active");
+        if (icon.classList.contains("active")) positionTooltip(icon);
       }
     });
+    icon.addEventListener("mouseenter", function(){ positionTooltip(icon); });
+    icon.addEventListener("focus", function(){ positionTooltip(icon); });
   });
   document.addEventListener("click", function(e){
     document.querySelectorAll(".info-icon.active").forEach(function(icon){
@@ -1634,6 +1658,14 @@
     return label.replace(/^[A-Z0-9]{3}\//, "");
   }
 
+  function identifierOnlyLabel(label){
+    // For crew text: if it's a specific airport (code — city, country), show just the code.
+    // City/country/region entries (which start lowercase, e.g. "Tokyo — Asia") pass through unchanged.
+    var stripped = shortLocationLabel(label);
+    var m = stripped.match(/^([A-Z0-9]+) \u2014 /);
+    return m ? m[1] : stripped;
+  }
+
   function formatLocalCompact(w){
     var parts = w.date.split("-").map(Number);
     return parts[2] + " " + MONTHS[parts[1]-1] + " " + w.time.slice(0,5) + "L";
@@ -1641,8 +1673,8 @@
 
   function buildFlightLines(){
     var lines = [];
-    var originLabel = shortLocationLabel(originLocation.value || "\u2014");
-    var destLabel = shortLocationLabel(destLocation.value || "\u2014");
+    var originLabel = identifierOnlyLabel(originLocation.value || "\u2014");
+    var destLabel = identifierOnlyLabel(destLocation.value || "\u2014");
     var originLocal = utcMsToWallPartsTZ(dep.utcMs, originTZ);
     var destLocal = utcMsToWallPartsTZ(arr.utcMs, destTZ);
 
