@@ -40,6 +40,11 @@
   .hero .hero__label{ font-size: 0.68rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); }
   .hero .hero__value{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: clamp(1.2rem, 4vw, 1.6rem); color: var(--cyan); letter-spacing: 0.01em; }
 
+  .clocks-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+  .clock-card{ background: linear-gradient(180deg, var(--bg-raised), var(--bg)); border: 1px solid var(--panel-border); border-radius: 10px; padding: 1.2rem 1.4rem; }
+  .clock-card .hero__label{ font-size: 0.68rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 0.5rem; }
+  .clock-card .hero__value{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: clamp(1.3rem, 5vw, 1.8rem); color: var(--cyan); letter-spacing: 0.01em; }
+
   h2.section-title{ font-size: 0.95rem; font-weight: 650; margin: 2.2rem 0 0.9rem; color: var(--text); display:flex; align-items:center; justify-content:space-between; gap:0.6rem; }
   h2.section-title .section-title__left{ display:flex; align-items:center; gap:0.6rem; }
   h2.section-title .dot{ width:7px; height:7px; border-radius:50%; background: var(--cyan); flex:none; }
@@ -91,6 +96,10 @@
   .field-note.error{ color: var(--danger); font-family: var(--font-sans); }
 
   .autocomplete-wrap{ position: relative; }
+  .autocomplete-wrap input[type="text"]{ padding-right: 2.3rem; }
+  .star-btn{ position:absolute; right:0.35rem; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:1.15rem; line-height:1; color:var(--text-faint); cursor:pointer; padding:0.25rem; z-index:5; }
+  .star-btn:hover{ color: var(--amber); }
+  .star-btn.starred{ color: var(--amber); }
   .suggest-dropdown{
     display: none;
     position: absolute;
@@ -111,9 +120,13 @@
     color: var(--text);
     cursor: pointer;
     border-bottom: 1px solid var(--panel-border);
+    display: flex; align-items: center; gap: 0.5rem;
   }
   .suggest-option:last-child{ border-bottom: none; }
   .suggest-option:hover, .suggest-option.active{ background: var(--bg); color: var(--cyan); }
+  .suggest-star{ flex: none; color: var(--text-faint); font-size: 0.95rem; cursor: pointer; }
+  .suggest-star.starred{ color: var(--amber); }
+  .suggest-star:hover{ color: var(--amber); }
 
   select, input[type="date"], input[type="time"], input[type="text"]{
     width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--panel-border); border-radius: 4px;
@@ -144,6 +157,7 @@
   .result-main{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.15rem; }
   .result-sub{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.7rem; color: var(--cyan); margin-top: 0.15rem; }
   .panel.arrival .result-sub{ color: var(--amber); }
+  .result-countdown{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.82rem; color: var(--text-faint); margin-top: 0.3rem; }
 
   .summary-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1rem; }
   @media (max-width: 560px){ .summary-grid{ grid-template-columns: 1fr; } }
@@ -206,18 +220,11 @@
     <p class="tagline">Built for aircrew.</p>
   </header>
 
-  <div class="hero">
-    <span class="hero__label">Live UTC (Zulu)</span>
-    <span class="hero__value" id="liveUtc">—</span>
-    <span class="hero__divider"></span>
-    <span class="hero__label">Live Julian Date</span>
-    <span class="hero__value" id="liveJulian">—</span>
-  </div>
-
   <div class="tabbar">
     <button class="tabbtn active" id="tabBtnFlight" type="button">Flight</button>
     <button class="tabbtn" id="tabBtnDuty" type="button">Variables</button>
     <button class="tabbtn" id="tabBtnCrew" type="button">Timing</button>
+    <button class="tabbtn" id="tabBtnClocks" type="button">Clocks</button>
   </div>
 
   <div id="tabFlight">
@@ -237,6 +244,7 @@
         <label for="originLocation">Origin — city or airport code</label>
         <div class="autocomplete-wrap">
           <input type="text" id="originLocation" placeholder="e.g. HNL, Honolulu" autocomplete="off">
+          <button type="button" class="star-btn" id="originStarBtn" title="Star this airfield">☆</button>
           <div class="suggest-dropdown" id="originSuggest"></div>
         </div>
       </div>
@@ -296,10 +304,7 @@
       <div class="result-label">Local at Origin</div>
       <div class="result-main" id="originLocalDate">—</div>
       <div class="result-sub" id="originLocalTime">—</div>
-
-      <div class="presets">
-        <button class="pill" id="presetZuluOrigin" type="button">Jump to Zulu / UTC</button>
-      </div>
+      <div class="result-countdown" id="originCountdown">—</div>
     </div>
 
     <!-- ARRIVAL -->
@@ -312,6 +317,7 @@
         <label for="destLocation">Destination — city or airport code</label>
         <div class="autocomplete-wrap">
           <input type="text" id="destLocation" placeholder="e.g. GUM, Guam" autocomplete="off">
+          <button type="button" class="star-btn" id="destStarBtn" title="Star this airfield">☆</button>
           <div class="suggest-dropdown" id="destSuggest"></div>
         </div>
       </div>
@@ -342,21 +348,6 @@
         </div>
       </div>
 
-      <div class="date-format-toggle" style="visibility:hidden;" aria-hidden="true">
-        <label class="toggle-wrap">
-          <span class="switch"><input type="checkbox" tabindex="-1"><span class="slider"></span></span>
-          <span>Zulu Date</span>
-        </label>
-        <span class="toggle-hint">tap to switch date format (applies to Departure &amp; Arrival)</span>
-        <span class="toggle-wrap-outer" id="yearToggleGhost">
-          <label class="toggle-wrap">
-            <span class="switch"><input type="checkbox" tabindex="-1"><span class="slider"></span></span>
-            Year (YYDDD)
-          </label>
-          <span class="info-icon">i</span>
-        </span>
-      </div>
-
       <div class="field">
         <label for="arrZuluTime">Arrival Zulu Time (24-hr)</label>
         <input type="text" id="arrZuluTime" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="14:00">
@@ -366,9 +357,9 @@
       <div class="result-label">Local at Destination</div>
       <div class="result-main" id="destLocalDate">—</div>
       <div class="result-sub" id="destLocalTime">—</div>
+      <div class="result-countdown" id="destCountdown">—</div>
 
       <div class="presets">
-        <button class="pill" id="presetZuluDest" type="button">Jump to Zulu / UTC</button>
         <button class="pill" id="swapBtn" type="button">⇄ Swap departure / arrival</button>
       </div>
     </div>
@@ -448,6 +439,27 @@
     </div>
     <pre id="crewOutput" class="crew-output">Tap "Generate crew timing" to build the summary.</pre>
   </div><!-- /tabCrew -->
+
+  <div id="tabClocks" style="display:none">
+    <h2 class="section-title">
+      <span class="section-title__left"><span class="dot"></span>Clocks</span>
+    </h2>
+    <p class="tagline" style="margin-bottom:1.2rem">Live reference clocks — Zulu, aviation Julian date, and local time at Origin.</p>
+    <div class="clocks-grid">
+      <div class="clock-card">
+        <div class="hero__label">Live UTC (Zulu)</div>
+        <div class="hero__value" id="liveUtc">—</div>
+      </div>
+      <div class="clock-card">
+        <div class="hero__label">Live Julian Date</div>
+        <div class="hero__value" id="liveJulian">—</div>
+      </div>
+      <div class="clock-card">
+        <div class="hero__label" id="liveLocalLabel">Live Local (Origin)</div>
+        <div class="hero__value" id="liveLocal">—</div>
+      </div>
+    </div>
+  </div><!-- /tabClocks -->
 
   <footer class="foot">
     Runs entirely on your device. No accounts, no tracking, no network requests — works offline once loaded, unless you turn on Arrival Weather. City and airport lookups use your browser's built-in time zone data.
@@ -699,7 +711,7 @@
     labelToIcao[label.toLowerCase()] = icaoCode;
     var cityLower = a.c.toLowerCase();
     if (!(cityLower in cityNameIndex)) cityNameIndex[cityLower] = a.z;
-    suggestionEntries.push({ label: label, rank: a.i ? 0 : 1 });
+    suggestionEntries.push({ label: label, rank: a.i ? 0 : 1, icao: icaoCode });
   });
 
   var countryZones = {};
@@ -751,14 +763,46 @@
   // reliably capped, styled, or scrolled across browsers — the exact "list runs off the page" issue).
   var MAX_SUGGESTIONS = 30;
 
+  /* ---------------- starred airfields (persisted locally on this device) ---------------- */
+
+  var STAR_STORAGE_KEY = "meridianStarredAirfields";
+  var starredCodes = (function(){
+    try {
+      var raw = localStorage.getItem(STAR_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e){ return []; }
+  })();
+
+  function isStarred(code){ return !!code && starredCodes.indexOf(code) !== -1; }
+
+  function saveStarred(){
+    try { localStorage.setItem(STAR_STORAGE_KEY, JSON.stringify(starredCodes)); } catch(e){}
+  }
+
+  function toggleStarred(code){
+    if (!code) return;
+    var idx = starredCodes.indexOf(code);
+    if (idx === -1) starredCodes.push(code); else starredCodes.splice(idx, 1);
+    saveStarred();
+  }
+
   function getSuggestionMatches(query){
     var q = query.trim().toLowerCase();
-    if (q.length < 1) return [];
+    var pool = suggestionEntries;
+    if (q.length < 1){
+      // empty field: show starred favorites immediately, so common airfields are one tap away
+      pool = suggestionEntries.filter(function(e){ return e.icao && isStarred(e.icao); });
+      pool = pool.slice().sort(function(a,b){ return a.label.localeCompare(b.label); });
+      return pool.slice(0, MAX_SUGGESTIONS);
+    }
     var matches = [];
-    for (var i = 0; i < suggestionEntries.length; i++){
-      if (suggestionEntries[i].label.toLowerCase().indexOf(q) !== -1) matches.push(suggestionEntries[i]);
+    for (var i = 0; i < pool.length; i++){
+      if (pool[i].label.toLowerCase().indexOf(q) !== -1) matches.push(pool[i]);
     }
     matches.sort(function(a, b){
+      var aStar = a.icao && isStarred(a.icao) ? 0 : 1;
+      var bStar = b.icao && isStarred(b.icao) ? 0 : 1;
+      if (aStar !== bStar) return aStar - bStar;
       if (a.rank !== b.rank) return a.rank - b.rank;
       return a.label.localeCompare(b.label);
     });
@@ -775,7 +819,26 @@
       matches.forEach(function(m, i){
         var opt = document.createElement("div");
         opt.className = "suggest-option";
-        opt.textContent = m.label;
+
+        if (m.icao){
+          var star = document.createElement("span");
+          star.className = "suggest-star" + (isStarred(m.icao) ? " starred" : "");
+          star.textContent = isStarred(m.icao) ? "\u2605" : "\u2606";
+          star.title = "Star this airfield to keep it at the top of the list";
+          star.addEventListener("mousedown", function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            toggleStarred(m.icao);
+            star.classList.toggle("starred");
+            star.textContent = isStarred(m.icao) ? "\u2605" : "\u2606";
+          });
+          opt.appendChild(star);
+        }
+
+        var text = document.createElement("span");
+        text.textContent = m.label;
+        opt.appendChild(text);
+
         opt.addEventListener("mousedown", function(e){
           e.preventDefault(); // keep focus on input so blur-close doesn't fire first
           inputEl.value = m.label;
@@ -1008,6 +1071,13 @@
   }
   depZuluTime.addEventListener("input", onDepZuluTimeChange);
   depZuluTime.addEventListener("focus", function(){ this.select(); });
+  depZuluTime.addEventListener("blur", function(){
+    var digits = depZuluTime.value.replace(/\D/g, "");
+    if (digits.length === 3){
+      depZuluTime.value = "0" + digits[0] + ":" + digits.slice(1);
+      onDepZuluTimeChange();
+    }
+  });
   depSjd.addEventListener("focus", function(){ this.select(); });
   depLjd.addEventListener("focus", function(){ this.select(); });
 
@@ -1062,6 +1132,13 @@
   }
   arrZuluTime.addEventListener("input", onArrZuluTimeChange);
   arrZuluTime.addEventListener("focus", function(){ this.select(); });
+  arrZuluTime.addEventListener("blur", function(){
+    var digits = arrZuluTime.value.replace(/\D/g, "");
+    if (digits.length === 3){
+      arrZuluTime.value = "0" + digits[0] + ":" + digits.slice(1);
+      onArrZuluTimeChange();
+    }
+  });
   arrSjd.addEventListener("focus", function(){ this.select(); });
   arrLjd.addEventListener("focus", function(){ this.select(); });
 
@@ -1076,7 +1153,6 @@
   });
 
   var julianToggleLabel = document.getElementById("julianToggleLabel");
-  var yearToggleGhost = document.getElementById("yearToggleGhost");
 
   function applyJulianToggleState(){
     var on = julianToggle.checked;
@@ -1085,7 +1161,6 @@
     depCalendarGroup.style.display = on ? "none" : "";
     arrCalendarGroup.style.display = on ? "none" : "";
     yearToggleWrap.style.display = on ? "" : "none";
-    yearToggleGhost.style.display = on ? "" : "none";
     julianToggleLabel.textContent = on ? "Julian Date" : "Zulu Date";
   }
   julianToggle.addEventListener("change", applyJulianToggleState);
@@ -1144,6 +1219,8 @@
 
   var originAirport = null;
   var destAirport = null;
+  var originIcaoCode = null;
+  var destIcaoCode = null;
 
   attachAutocomplete(originLocation, document.getElementById("originSuggest"), function(){
     originLocation.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1151,6 +1228,8 @@
   attachAutocomplete(destLocation, document.getElementById("destSuggest"), function(){
     destLocation.dispatchEvent(new Event("change", { bubbles: true }));
   });
+  originLocation.addEventListener("focus", function(){ this.select(); });
+  destLocation.addEventListener("focus", function(){ this.select(); });
 
   // Defined early; safe to call before the Timing tab's rows exist yet (guarded).
   function refreshTimelineLocalRows(){
@@ -1168,7 +1247,9 @@
     }
     originTZ = match.tz;
     originAirport = match.airport;
+    originIcaoCode = match.icao;
     originLocation.value = match.airport ? buildAirportLabel(match.icao, match.airport) : zoneIdToLabel(match.tz);
+    updateStarButton(originStarBtn, originIcaoCode);
     renderOrigin();
     updateSummary();
     refreshTimelineLocalRows();
@@ -1183,33 +1264,46 @@
     }
     destTZ = match.tz;
     destAirport = match.airport;
+    destIcaoCode = match.icao;
     destLocation.value = match.airport ? buildAirportLabel(match.icao, match.airport) : zoneIdToLabel(match.tz);
+    updateStarButton(destStarBtn, destIcaoCode);
     renderDest();
     updateSummary();
   });
 
+  var originStarBtn = document.getElementById("originStarBtn");
+  var destStarBtn = document.getElementById("destStarBtn");
+
+  function updateStarButton(btn, code){
+    if (!code){
+      btn.style.display = "none";
+      return;
+    }
+    btn.style.display = "";
+    var starred = isStarred(code);
+    btn.textContent = starred ? "\u2605" : "\u2606";
+    btn.classList.toggle("starred", starred);
+  }
+
+  originStarBtn.addEventListener("click", function(){
+    toggleStarred(originIcaoCode);
+    updateStarButton(originStarBtn, originIcaoCode);
+  });
+  destStarBtn.addEventListener("click", function(){
+    toggleStarred(destIcaoCode);
+    updateStarButton(destStarBtn, destIcaoCode);
+  });
+
   /* ---- buttons ---- */
-
-  document.getElementById("presetZuluOrigin").addEventListener("click", function(){
-    originTZ = "UTC";
-    originAirport = null;
-    originLocation.value = zoneIdToLabel("UTC");
-    renderOrigin(); updateSummary();
-    refreshTimelineLocalRows();
-  });
-
-  document.getElementById("presetZuluDest").addEventListener("click", function(){
-    destTZ = "UTC";
-    destAirport = null;
-    destLocation.value = zoneIdToLabel("UTC");
-    renderDest(); updateSummary();
-  });
 
   document.getElementById("swapBtn").addEventListener("click", function(){
     var tmpTZ = originTZ; originTZ = destTZ; destTZ = tmpTZ;
     var tmpAirport = originAirport; originAirport = destAirport; destAirport = tmpAirport;
+    var tmpIcao = originIcaoCode; originIcaoCode = destIcaoCode; destIcaoCode = tmpIcao;
     var tmpLoc = originLocation.value; originLocation.value = destLocation.value; destLocation.value = tmpLoc;
     var tmpMs = dep.utcMs; dep.utcMs = arr.utcMs; arr.utcMs = tmpMs;
+    updateStarButton(originStarBtn, originIcaoCode);
+    updateStarButton(destStarBtn, destIcaoCode);
     refreshAll();
     refreshTimelineLocalRows();
   });
@@ -1244,37 +1338,39 @@
 
   // WMO weather codes -> a short plain-language phrase, and whether it counts as inclement
   function describeWeatherCode(code){
+    // [plain description, is inclement, specific advisory] — the advisory is tailored to the
+    // actual condition rather than one generic line, since every kind of weather needs different prep.
     var map = {
-      0:  ["clear skies", false],
-      1:  ["mostly clear", false],
-      2:  ["partly cloudy", false],
-      3:  ["overcast", false],
-      45: ["foggy", true],
-      48: ["foggy with frost", true],
-      51: ["light drizzle", true],
-      53: ["drizzle", true],
-      55: ["heavy drizzle", true],
-      56: ["freezing drizzle", true],
-      57: ["freezing drizzle", true],
-      61: ["light rain", true],
-      63: ["rain", true],
-      65: ["heavy rain", true],
-      66: ["freezing rain", true],
-      67: ["freezing rain", true],
-      71: ["light snow", true],
-      73: ["snow", true],
-      75: ["heavy snow", true],
-      77: ["snow grains", true],
-      80: ["rain showers", true],
-      81: ["rain showers", true],
-      82: ["violent rain showers", true],
-      85: ["snow showers", true],
-      86: ["heavy snow showers", true],
-      95: ["thunderstorms", true],
-      96: ["thunderstorms with hail", true],
-      99: ["severe thunderstorms with hail", true]
+      0:  ["clear skies", false, null],
+      1:  ["mostly clear", false, null],
+      2:  ["partly cloudy", false, null],
+      3:  ["overcast", false, null],
+      45: ["foggy", true, "Reduced visibility \u2014 give yourself extra time getting around."],
+      48: ["foggy with frost", true, "Reduced visibility and slick surfaces \u2014 give yourself extra time."],
+      51: ["light drizzle", true, "A light rain jacket should cover it."],
+      53: ["drizzle", true, "Bring a rain jacket."],
+      55: ["heavy drizzle", true, "Bring real rain gear, not just a jacket."],
+      56: ["freezing drizzle", true, "Icy surfaces possible \u2014 watch your footing."],
+      57: ["freezing drizzle", true, "Icy surfaces possible \u2014 watch your footing."],
+      61: ["light rain", true, "Grab a rain jacket or umbrella."],
+      63: ["rain", true, "Pack real rain gear."],
+      65: ["heavy rain", true, "Pack real rain gear \u2014 it's coming down hard."],
+      66: ["freezing rain", true, "Ice is likely \u2014 watch your footing and driving."],
+      67: ["freezing rain", true, "Ice is likely \u2014 watch your footing and driving."],
+      71: ["light snow", true, "Dress warm \u2014 light snow expected."],
+      73: ["snow", true, "Dress warm and expect slower travel getting around."],
+      75: ["heavy snow", true, "Dress warm \u2014 heavy snow could slow things down a lot."],
+      77: ["snow grains", true, "Dress warm, some snow expected."],
+      80: ["rain showers", true, "Keep a rain jacket handy."],
+      81: ["rain showers", true, "Keep a rain jacket handy."],
+      82: ["violent rain showers", true, "Pack real rain gear \u2014 downpours expected."],
+      85: ["snow showers", true, "Dress warm, snow showers expected."],
+      86: ["heavy snow showers", true, "Dress warm \u2014 heavy snow showers expected."],
+      95: ["thunderstorms", true, "Storms possible \u2014 build in extra time getting around."],
+      96: ["thunderstorms with hail", true, "Storms and hail possible \u2014 build in extra time."],
+      99: ["severe thunderstorms with hail", true, "Severe storms possible \u2014 build in extra time and stay alert."]
     };
-    return map[code] || ["conditions I can't quite classify", false];
+    return map[code] || ["conditions I can't quite classify", false, null];
   }
 
   function formatWeatherDateTag(ms){
@@ -1328,9 +1424,9 @@
           return { ok:false, text: "Weather isn't available for that date \u2014 forecasts only cover roughly the next couple of weeks." };
         }
         var desc = describeWeatherCode(code);
-        var phrase = desc[0], inclement = desc[1];
+        var phrase = desc[0], inclement = desc[1], advisory = desc[2];
         var sentence = "Around " + Math.round(temp) + unitSymbol + ", feels like " + Math.round(feels) + unitSymbol + ". " + phrase.charAt(0).toUpperCase() + phrase.slice(1) + ".";
-        if (inclement) sentence += " Worth packing for it.";
+        if (advisory) sentence += " " + advisory;
         if (precipProb !== null && precipProb >= 30 && !inclement) sentence += " " + precipProb + "% chance of rain.";
         return { ok:true, text: sentence, inclement: inclement };
       })
@@ -1354,19 +1450,23 @@
   var tabBtnFlight = document.getElementById("tabBtnFlight");
   var tabBtnDuty = document.getElementById("tabBtnDuty");
   var tabBtnCrew = document.getElementById("tabBtnCrew");
+  var tabBtnClocks = document.getElementById("tabBtnClocks");
   var tabFlight = document.getElementById("tabFlight");
   var tabDuty = document.getElementById("tabDuty");
   var tabCrew = document.getElementById("tabCrew");
+  var tabClocks = document.getElementById("tabClocks");
 
   function activateTab(btn){
-    [tabBtnFlight, tabBtnDuty, tabBtnCrew].forEach(function(b){ b.classList.toggle("active", b === btn); });
+    [tabBtnFlight, tabBtnDuty, tabBtnCrew, tabBtnClocks].forEach(function(b){ b.classList.toggle("active", b === btn); });
     tabFlight.style.display = (btn === tabBtnFlight) ? "" : "none";
     tabDuty.style.display = (btn === tabBtnDuty) ? "" : "none";
     tabCrew.style.display = (btn === tabBtnCrew) ? "" : "none";
+    tabClocks.style.display = (btn === tabBtnClocks) ? "" : "none";
   }
   tabBtnFlight.addEventListener("click", function(){ activateTab(tabBtnFlight); });
   tabBtnDuty.addEventListener("click", function(){ activateTab(tabBtnDuty); });
   tabBtnCrew.addEventListener("click", function(){ activateTab(tabBtnCrew); });
+  tabBtnClocks.addEventListener("click", function(){ activateTab(tabBtnClocks); });
 
   /* ================= Variables (durations relative to takeoff) ================= */
 
@@ -1465,6 +1565,7 @@
   buildVariableRow("Latest Alert", "latestAlert", 6, 0, "after Alert", false);
   buildVariableRow("Alert PIC Discretion", "alertPicDiscretion", 8, 0, "after Alert", false);
   buildVariableRow("Show", "show", 3, 15, "before takeoff");
+  buildVariableRow("Bus", "busShuttle", 0, 15, "after Show", false);
   buildVariableRow("Brief", "brief", 0, 30, "before Step", false);
   buildVariableRow("Step", "bus", 2, 0, "before takeoff");
   buildVariableRow("Engine Start", "engineStart", 0, 30, "before takeoff");
@@ -1635,6 +1736,7 @@
   buildComputedRow("Latest Alert", "latestAlert", "local", getAlertMs, "after");
   buildComputedRow("Alert PIC Discretion", "alertPicDiscretion", "local", getAlertMs, "after");
   buildComputedRow("Show", "show", "local", getTakeoffMs, "before");
+  buildComputedRow("Bus", "busShuttle", "local", getShowMs, "after");
   buildComputedRow("Brief", "brief", "local", getStepMs, "before");
   buildComputedRow("Step", "bus", "local", getTakeoffMs, "before");
   buildComputedRow("Engine Start", "engineStart", "zulu", getTakeoffMs, "before");
@@ -1703,7 +1805,7 @@
   var timelineOrder = [
     ["Crew Rest","crewRest"], ["Last SCUBA","lastScuba"], ["Last Beer","lastBeer"], ["Last Ambien","lastAmbien"],
     ["Alert","alert"], ["Latest Alert","latestAlert"], ["Alert PIC Discretion","alertPicDiscretion"],
-    ["Show","show"], ["Brief","brief"], ["Step","bus"],
+    ["Show","show"], ["Bus","busShuttle"], ["Brief","brief"], ["Step","bus"],
     ["Engine Start","engineStart"], ["Taxi","taxi"], ["Takeoff","takeoff"], ["Land","land"],
     ["FDP","fdp"], ["Augmented FDP","augmentedFdp"], ["AP off FDP","apOffFdp"], ["CDT","cdt"]
   ];
@@ -1772,13 +1874,15 @@
     }
   });
 
-  /* ---- initial state: Origin = PGUA (Guam), Destination = PHNL (Honolulu), both at 0000Z ---- */
+  /* ---- initial state: Origin = PHNL (Honolulu), Destination = RJAA (Tokyo/Narita), both at 0000Z ---- */
   function resetFlightTab(){
-    var originIcao = "PGUA", destIcao = "PHNL";
+    var originIcao = "PHNL", destIcao = "RJAA"; // Hawaii -> Tokyo (Narita), so the IDL crossing is visible right away
     originTZ = AIRPORTS[originIcao].z;
     originAirport = AIRPORTS[originIcao];
+    originIcaoCode = originIcao;
     destTZ = AIRPORTS[destIcao].z;
     destAirport = AIRPORTS[destIcao];
+    destIcaoCode = destIcao;
 
     var todayStartMs = Math.floor(Date.now() / MS_PER_DAY) * MS_PER_DAY;
     dep.utcMs = todayStartMs;           // 0000Z today
@@ -1788,6 +1892,8 @@
     destLocation.value = buildAirportLabel(destIcao, destAirport);
     originNote.classList.remove("error");
     destNote.classList.remove("error");
+    updateStarButton(originStarBtn, originIcaoCode);
+    updateStarButton(destStarBtn, destIcaoCode);
 
     julianToggle.checked = false;
     applyJulianToggleState();
@@ -1806,12 +1912,37 @@
 
   var liveUtc = document.getElementById("liveUtc");
   var liveJulian = document.getElementById("liveJulian");
+  var liveLocal = document.getElementById("liveLocal");
+  var liveLocalLabel = document.getElementById("liveLocalLabel");
+  var originCountdownEl = document.getElementById("originCountdown");
+  var destCountdownEl = document.getElementById("destCountdown");
+
+  function formatCountdown(targetMs){
+    var diff = targetMs - Date.now();
+    var overdue = diff < 0;
+    var totalSeconds = Math.floor(Math.abs(diff) / 1000);
+    var hh = Math.floor(totalSeconds / 3600);
+    var mm = Math.floor((totalSeconds % 3600) / 60);
+    var ss = totalSeconds % 60;
+    var parts = [];
+    if (hh > 0) parts.push(hh + "h");
+    parts.push(pad(mm) + "m");
+    parts.push(pad(ss) + "s");
+    var text = parts.join(" ");
+    return overdue ? (text + " ago") : ("in " + text);
+  }
+
   function tick(){
     var now = Date.now();
     var p = utcMsToWallPartsTZ(now, "UTC");
     liveUtc.textContent = p.date + " " + p.time + "Z";
     var z = zuluFieldsFromMs(now);
     liveJulian.textContent = pad(z.year % 100, 2) + z.sjd;
+    var local = utcMsToWallPartsTZ(now, originTZ);
+    liveLocal.textContent = local.date + " " + local.time;
+    liveLocalLabel.textContent = "Live Local (" + (originAirport ? originAirport.c : originTZ) + ")";
+    originCountdownEl.textContent = formatCountdown(dep.utcMs);
+    destCountdownEl.textContent = formatCountdown(arr.utcMs);
   }
   tick();
   setInterval(tick, 1000);
